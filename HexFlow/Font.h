@@ -4,7 +4,7 @@
 void HF_FontInitFreeType(void);
 void HF_FontDeinitFreeType(void);
 
-void HF_FontAlloc(struct HF_Font *Font, char const *FilePath, float WorldSize, char unsigned Hinting);
+struct HF_Font* HF_FontAlloc(char unsigned const *FileBase, long long unsigned FileSize, float WorldSize, char unsigned Hinting);
 void HF_FontFree(struct HF_Font *Font);
 
 #endif

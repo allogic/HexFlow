@@ -18,8 +18,10 @@ static void HF_ShaderCheckLinkStatus(int unsigned Program);
 
 #endif
 
-void HF_ShaderAlloc(struct HF_Shader *Shader, char const *VertexSource, char const *FragmentSource)
+struct HF_Shader* HF_ShaderAlloc(char const *VertexSource, char const *FragmentSource)
 {
+	struct HF_Shader* Shader = (struct HF_Shader*)calloc(1, sizeof(struct HF_Shader));
+
 	Shader->Program = glCreateProgram();
 
 	int unsigned VertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -56,11 +58,15 @@ void HF_ShaderAlloc(struct HF_Shader *Shader, char const *VertexSource, char con
 
 	glDeleteShader(VertexShader);
 	glDeleteShader(FragmentShader);
+
+	return Shader;
 }
 
 void HF_ShaderFree(struct HF_Shader* Shader)
 {
 	glDeleteProgram(Shader->Program);
+
+	free(Shader);
 }
 
 #ifdef HF_DEBUG

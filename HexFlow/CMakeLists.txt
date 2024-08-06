@@ -65,3 +65,16 @@ target_link_libraries (${TARGET_NAME} PRIVATE
 		${CMAKE_SOURCE_DIR}/Library/glfw3.a
 	>
 )
+
+add_custom_command (TARGET ${TARGET_NAME}
+	POST_BUILD
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch r ${CMAKE_SOURCE_DIR}/Shaders/FontVertexShader.glsl .vshdr ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch r ${CMAKE_SOURCE_DIR}/Shaders/FontFragmentShader.glsl .fshdr ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch rb ${CMAKE_SOURCE_DIR}/Fonts/SourceSerifPro-Regular.otf .dfont ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+)

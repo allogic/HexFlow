@@ -11,6 +11,7 @@
 #include <HexFlow/GLAD/glad.h>
 
 #ifdef HF_DEBUG
+
 	#define FT_CHECK(EXPRESSION) \
 		{ \
 			FT_Error Error = (EXPRESSION); \
@@ -23,12 +24,15 @@
 				} \
 			} \
 		}
+
 #else
+
 	#define FT_CHECK(EXPRESSION) (EXPRESSION)
+
 #endif
 
 #define HF_BUFFER_GLYPH_SIZE 0x100
-#define HF_BUFFER_CURVE_SIZE 0x100
+#define HF_BUFFER_CURVE_SIZE 0x1000
 
 #define HF_GLYPH_SIZE 0x400
 
@@ -102,9 +106,11 @@ void HF_FontDeinitFreeType(void)
 	FT_CHECK(FT_Done_FreeType(m_Library));
 }
 
-void HF_FontAlloc(struct HF_Font *Font, char const *FilePath, float WorldSize, char unsigned Hinting)
+struct HF_Font* HF_FontAlloc(char unsigned const *FileBase, long long unsigned FileSize, float WorldSize, char unsigned Hinting)
 {
-	FT_CHECK(FT_New_Face(m_Library, FilePath, 0, &Font->Face));
+	struct HF_Font* Font = (struct HF_Font*)calloc(1, sizeof(struct HF_Font));
+
+	FT_CHECK(FT_New_Memory_Face(m_Library, FileBase, (int unsigned)FileSize, 0, &Font->Face));
 
 	assert(Font->Face->face_flags & FT_FACE_FLAG_SCALABLE);
 
@@ -173,6 +179,8 @@ void HF_FontAlloc(struct HF_Font *Font, char const *FilePath, float WorldSize, c
 	glBindTexture(GL_TEXTURE_BUFFER, Font->CurveTexture);
 	glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32F, Font->CurveBuffer);
 	glBindTexture(GL_TEXTURE_BUFFER, 0);
+
+	return Font;
 }
 
 void HF_FontFree(struct HF_Font *Font)
@@ -189,6 +197,8 @@ void HF_FontFree(struct HF_Font *Font)
 	glDeleteBuffers(1, &Font->CurveBuffer);
 
 	FT_Done_Face(Font->Face);
+
+	free(Font);
 }
 
 // TODO Cleanup this function!
