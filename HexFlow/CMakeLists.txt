@@ -1,0 +1,67 @@
+﻿find_package (OpenGL REQUIRED)
+
+file (GLOB_RECURSE TARGET_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/*.c)
+
+set (TARGET_NAME HexFlow)
+
+add_executable (${TARGET_NAME}
+	${TARGET_SOURCE}
+)
+
+set_target_properties (${TARGET_NAME} PROPERTIES
+	ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/$<CONFIG>
+	LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/$<CONFIG>
+	RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/$<CONFIG>
+	C_STANDARD 99
+)
+
+target_compile_options (${TARGET_NAME} PRIVATE
+	$<$<CONFIG:Debug>:
+		$<$<C_COMPILER_ID:MSVC>:/MDd>
+		$<$<C_COMPILER_ID:GNU>:-g>
+		$<$<C_COMPILER_ID:Clang>:-g>
+	>
+
+	$<$<CONFIG:Release>:
+		$<$<C_COMPILER_ID:MSVC>:/MD>
+		$<$<C_COMPILER_ID:GNU>:-O3>
+		$<$<C_COMPILER_ID:Clang>:-O3>
+	>
+)
+
+target_compile_definitions (${TARGET_NAME} PRIVATE
+	$<$<CONFIG:Debug>:HF_DEBUG>
+
+	$<$<PLATFORM_ID:Windows>:
+		HF_PLATFORM_WINDOWS
+		HF_PAGE_SIZE=0x1000
+	>
+
+	$<$<PLATFORM_ID:Linux>:HF_PLATFORM_LINUX>
+)
+
+target_link_options (${TARGET_NAME} PRIVATE
+    $<$<CONFIG:Debug>:
+        $<$<C_COMPILER_ID:MSVC>:/IGNORE:4099>
+    >
+)
+
+target_include_directories (${TARGET_NAME} PRIVATE
+	${CMAKE_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/FreeType
+)
+
+target_link_libraries (${TARGET_NAME} PRIVATE
+	${OPENGL_LIBRARIES}
+
+	$<$<PLATFORM_ID:Windows>:
+		${CMAKE_SOURCE_DIR}/Library/freetype.lib
+		${CMAKE_SOURCE_DIR}/Library/glfw3.lib
+	>
+
+	$<$<PLATFORM_ID:Linux>:
+		${CMAKE_SOURCE_DIR}/Library/freetype.a
+		${CMAKE_SOURCE_DIR}/Library/glfw3.a
+	>
+)
