@@ -76,9 +76,7 @@ int main()
 					glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
 					glClear(GL_COLOR_BUFFER_BIT);
 
-					glfwMakeContextCurrent(Context);
 					glfwSwapBuffers(Context);
-
 					glfwPollEvents();
 				}
 
