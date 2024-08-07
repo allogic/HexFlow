@@ -22,32 +22,39 @@ jobs:
       - name: Checkout repository code
         uses: actions/checkout@v4
 
-      - name: Set up CMake on Windows
+      - name: Set up Chocolatey
         if: matrix.os == 'windows-latest'
-        run: choco install -y cmake --installargs "ADD_CMAKE_TO_PATH=System" --apply-install-arguments-to-dependencies
+        run: |
+          Set-ExecutionPolicy Bypass -Scope Process -Force; `
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; `
+          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
-      - name: Set up MSVC on Windows
+      - name: Set up CMake
+        if: matrix.os == 'windows-latest'
+        run: choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
+
+      - name: Set up MSVC
         if: matrix.os == 'windows-latest' && matrix.compiler == 'msvc'
-        run: choco install -y visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools"
+        run: choco install -y visualstudio2022buildtools --package-parameters '--add Microsoft.VisualStudio.Workload.VCTools'
 
-      - name: Set up Clang on Windows
+      - name: Set up Clang
         if: matrix.os == 'windows-latest' && matrix.compiler == 'clang'
         run: choco install -y llvm
 
-      - name: Set up CMake on Ubuntu
+      - name: Set up CMake
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get install -y cmake
 
-      - name: Set up GCC on Ubuntu
+      - name: Set up GCC
         if: matrix.os == 'ubuntu-latest' && matrix.compiler == 'gcc'
         run: sudo apt-get install -y build-essential
 
-      - name: Set up Clang on Ubuntu
+      - name: Set up Clang
         if: matrix.os == 'ubuntu-latest' && matrix.compiler == 'clang'
         run: sudo apt-get install -y clang
 
       - name: Configure CMake
-        run: cmake -S . -B Build -G "${{ matrix.compiler }}"
+        run: cmake -S . -B Build -G '${{ matrix.compiler }}'
 
       - name: Build
         run: cmake --build Build
