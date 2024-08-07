@@ -24,15 +24,15 @@ jobs:
 
       - name: Set up CMake on Windows
         if: matrix.os == 'windows-latest'
-        run: choco install cmake -y
+        run: choco install -y cmake
 
       - name: Set up MSVC on Windows
         if: matrix.os == 'windows-latest' && matrix.compiler == 'msvc'
-        run: choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools" -y
+        run: choco install -y visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools"
 
       - name: Set up Clang on Windows
         if: matrix.os == 'windows-latest' && matrix.compiler == 'clang'
-        run: choco install llvm -y
+        run: choco install -y llvm
 
       - name: Set up CMake on Ubuntu
         if: matrix.os == 'ubuntu-latest'
