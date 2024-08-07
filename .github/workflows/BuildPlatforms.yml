@@ -21,15 +21,15 @@ jobs:
         run: choco install cmake -y
 
       - name: Set up MSVC on Windows
-        if: matrix.compiler == "msvc"
+        if: matrix.compiler == 'msvc'
         run: choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools" -y
 
       - name: Set up GCC on Windows
-        if: matrix.compiler == "gcc"
+        if: matrix.compiler == 'gcc'
         run: choco install mingw -y
 
       - name: Set up Clang on Windows
-        if: matrix.compiler == "clang"
+        if: matrix.compiler == 'clang'
         run: choco install llvm -y
 
       - name: Configure CMake
