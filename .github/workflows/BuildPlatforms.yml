@@ -15,7 +15,7 @@ jobs:
         compiler: [msvc, gcc, clang]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
       - name: Set up CMake on Windows
         run: choco install cmake -y
