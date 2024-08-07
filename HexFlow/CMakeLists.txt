@@ -41,9 +41,9 @@ target_compile_definitions (${TARGET_NAME} PRIVATE
 )
 
 target_link_options (${TARGET_NAME} PRIVATE
-    $<$<CONFIG:Debug>:
-        $<$<C_COMPILER_ID:MSVC>:/IGNORE:4099>
-    >
+	$<$<CONFIG:Debug>:
+		$<$<C_COMPILER_ID:MSVC>:/IGNORE:4099>
+	>
 )
 
 target_include_directories (${TARGET_NAME} PRIVATE
