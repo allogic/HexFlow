@@ -1,0 +1,39 @@
+name: CMake Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: ${{ matrix.os }} build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        compiler: [msvc, gcc, clang]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up CMake on Windows
+        run: choco install cmake -y
+
+      - name: Set up MSVC on Windows
+        if: matrix.compiler == "msvc"
+        run: choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools" -y
+
+      - name: Set up GCC on Windows
+        if: matrix.compiler == "gcc"
+        run: choco install mingw -y
+
+      - name: Set up Clang on Windows
+        if: matrix.compiler == "clang"
+        run: choco install llvm -y
+
+      - name: Configure CMake
+        run: cmake -S . -B Build -G "${{ matrix.compiler }}"
+
+      - name: Build
+        run: cmake --build Build
