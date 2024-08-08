@@ -7,10 +7,13 @@
 
 #endif
 
+#include <HexFlow/FileSystem.h>
 #include <HexFlow/Font.h>
 #include <HexFlow/Shader.h>
 #include <HexFlow/Matrix.h>
 #include <HexFlow/Projection.h>
+#include <HexFlow/Graph.h>
+#include <HexFlow/List.h>
 
 #include <HexFlow/GLAD/glad.h>
 
@@ -46,8 +49,7 @@ struct HF_UserConfig
 
 #endif
 
-static void HF_ReadFile(char const *Mode, char const *FileName, char **Buffer, long long unsigned *Size);
-static void HF_WriteFile(char const *Mode, char const *FileName, char const *Buffer, long long unsigned Size);
+static HF_ListEntry m_GraphList = { 0 };
 
 static void HF_PatchSection(char *Image, char const *SectionName, char const *Buffer, long long unsigned Size);
 
@@ -70,10 +72,10 @@ int main(int Argc, char** Argv)
 			long long unsigned ImageSize = 0;
 			long long unsigned PatchSize = 0;
 
-			HF_ReadFile("rb", Argv[0], &ImageBuffer, &ImageSize);
-			HF_ReadFile(Argv[2], Argv[3], &PatchBuffer, &PatchSize);
+			HF_FileSystemReadFile("rb", Argv[0], &ImageBuffer, &ImageSize);
+			HF_FileSystemReadFile(Argv[2], Argv[3], &PatchBuffer, &PatchSize);
 			HF_PatchSection(ImageBuffer, Argv[4], PatchBuffer, PatchSize);
-			HF_WriteFile("wb", Argv[5], ImageBuffer, ImageSize);
+			HF_FileSystemWriteFile("wb", Argv[5], ImageBuffer, ImageSize);
 
 			free(ImageBuffer);
 			free(PatchBuffer);
@@ -136,7 +138,17 @@ int main(int Argc, char** Argv)
 						glClear(GL_COLOR_BUFFER_BIT);
 
 						HF_FontDrawBegin(Font, FontShader, Projection, View, Model);
-						HF_FontDraw(Font, 0.0F, 0.0F, g_FragmentShader);
+
+						HF_ListEntry *ListEntry = m_GraphList.Flink;
+						while (ListEntry != &m_GraphList)
+						{
+							struct HF_Graph *Graph = (struct HF_Graph*)ListEntry;
+
+							HF_GraphDraw(Graph, Font);
+
+							ListEntry = ListEntry->Flink;
+						}
+
 						HF_FontDrawEnd(Font, FontShader);
 
 						glfwSwapBuffers(Context);
@@ -168,31 +180,6 @@ int main(int Argc, char** Argv)
 	}
 
 	return 0;
-}
-
-static void HF_ReadFile(char const *Mode, char const *FileName, char **Buffer, long long unsigned *Size)
-{
-	FILE *File = fopen(FileName, Mode);
-
-	fseek(File, 0, SEEK_END);
-	*Size = ftell(File);
-	*Buffer = calloc((*Size) + 1, sizeof(char unsigned));
-	fseek(File, 0, SEEK_SET);
-
-	fread(*Buffer, 1, *Size, File);
-
-	fclose(File);
-}
-
-static void HF_WriteFile(char const *Mode, char const *FileName, char const *Buffer, long long unsigned Size)
-{
-	FILE *File = fopen(FileName, Mode);
-
-	fseek(File, 0, SEEK_SET);
-
-	fwrite(Buffer, 1, Size, File);
-
-	fclose(File);
 }
 
 static void HF_PatchSection(char *Image, char const *SectionName, char const *Buffer, long long unsigned Size)
@@ -250,5 +237,10 @@ static void HF_KeyCallback(GLFWwindow *Context, int Key, int ScanCode, int Actio
 
 static void HF_DropCallback(GLFWwindow *Context, int PathCount, const char **Paths)
 {
+	for (int PathIndex = 0; PathIndex < PathCount; PathIndex++)
+	{
+		struct HF_Graph *Graph = HF_GraphAlloc(Paths[PathIndex]);
 
+		HF_ListInsertTail(&m_GraphList, HF_GraphListEntry(Graph));
+	}
 }
