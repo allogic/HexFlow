@@ -32,11 +32,7 @@ target_compile_options (${TARGET_NAME} PRIVATE
 target_compile_definitions (${TARGET_NAME} PRIVATE
 	$<$<CONFIG:Debug>:HF_DEBUG>
 
-	$<$<PLATFORM_ID:Windows>:
-		HF_PLATFORM_WINDOWS
-		HF_PAGE_SIZE=0x1000
-	>
-
+	$<$<PLATFORM_ID:Windows>:HF_PLATFORM_WINDOWS>
 	$<$<PLATFORM_ID:Linux>:HF_PLATFORM_LINUX>
 )
 
@@ -75,6 +71,6 @@ add_custom_command (TARGET ${TARGET_NAME}
 	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch r ${CMAKE_SOURCE_DIR}/Shaders/FontFragmentShader.glsl .fshdr ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 
-	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch rb ${CMAKE_SOURCE_DIR}/Fonts/SourceSerifPro-Regular.otf .dfont ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch rb ${CMAKE_SOURCE_DIR}/Fonts/CommitMono-400-Regular.otf .dfont ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 )

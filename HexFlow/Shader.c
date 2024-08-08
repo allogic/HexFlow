@@ -69,6 +69,79 @@ void HF_ShaderFree(struct HF_Shader* Shader)
 	free(Shader);
 }
 
+void HF_ShaderBind(struct HF_Shader *Shader)
+{
+	glUseProgram(Shader->Program);
+}
+
+void HF_ShaderUnbind(struct HF_Shader *Shader)
+{
+	glUseProgram(0);
+}
+
+void HF_ShaderSet1Int32(struct HF_Shader *Shader, char const *Name, int V0)
+{
+	int Location = glGetUniformLocation(Shader->Program, Name);
+
+	glUniform1i(Location, V0);
+}
+
+void HF_ShaderSet2Int32(struct HF_Shader *Shader, char const *Name, int V0, int V1)
+{
+	int Location = glGetUniformLocation(Shader->Program, Name);
+
+	glUniform2i(Location, V0, V1);
+}
+
+void HF_ShaderSet3Int32(struct HF_Shader *Shader, char const *Name, int V0, int V1, int V2)
+{
+	int Location = glGetUniformLocation(Shader->Program, Name);
+
+	glUniform3i(Location, V0, V1, V2);
+}
+
+void HF_ShaderSet4Int32(struct HF_Shader *Shader, char const *Name, int V0, int V1, int V2, int V3)
+{
+	int Location = glGetUniformLocation(Shader->Program, Name);
+
+	glUniform4i(Location, V0, V1, V2, V3);
+}
+
+void HF_ShaderSet1Real32(struct HF_Shader *Shader, char const *Name, float V0)
+{
+	int Location = glGetUniformLocation(Shader->Program, Name);
+
+	glUniform1f(Location, V0);
+}
+
+void HF_ShaderSet2Real32(struct HF_Shader *Shader, char const *Name, float V0, float V1)
+{
+	int Location = glGetUniformLocation(Shader->Program, Name);
+
+	glUniform2f(Location, V0, V1);
+}
+
+void HF_ShaderSet3Real32(struct HF_Shader *Shader, char const *Name, float V0, float V1, float V2)
+{
+	int Location = glGetUniformLocation(Shader->Program, Name);
+
+	glUniform3f(Location, V0, V1, V2);
+}
+
+void HF_ShaderSet4Real32(struct HF_Shader *Shader, char const *Name, float V0, float V1, float V2, float V3)
+{
+	int Location = glGetUniformLocation(Shader->Program, Name);
+
+	glUniform4f(Location, V0, V1, V2, V3);
+}
+
+void HF_ShaderSet1Matrix4(struct HF_Shader *Shader, char const *Name, HF_Matrix4 M)
+{
+	int Location = glGetUniformLocation(Shader->Program, Name);
+
+	glUniformMatrix4fv(Location, 1, 0, &M[0][0]);
+}
+
 #ifdef HF_DEBUG
 
 static void HF_ShaderCheckCompileStatus(int unsigned Shader)

@@ -5,14 +5,12 @@
 
 	#include <Windows.h>
 
-#else
-
-	#error "Platform not supported"
-
 #endif
 
 #include <HexFlow/Font.h>
 #include <HexFlow/Shader.h>
+#include <HexFlow/Matrix.h>
+#include <HexFlow/Projection.h>
 
 #include <HexFlow/GLAD/glad.h>
 
@@ -36,9 +34,9 @@ struct HF_UserConfig
 	#pragma section(".dfont", read)
 	#pragma section(".ucfgr", read)
 
-	__declspec(allocate(".vshdr")) char unsigned const g_VertexShader[HF_ALIGN_PAGE_UP(HF_SHADER_SECTION_SIZE)];
-	__declspec(allocate(".fshdr")) char unsigned const g_FragmentShader[HF_ALIGN_PAGE_UP(HF_SHADER_SECTION_SIZE)];
-	__declspec(allocate(".dfont")) char unsigned const g_DefaultFont[HF_ALIGN_PAGE_UP(HF_FONT_SECTION_SIZE)];
+	__declspec(allocate(".vshdr")) char unsigned const g_VertexShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(".fshdr")) char unsigned const g_FragmentShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(".dfont")) char unsigned const g_DefaultFont[HF_FONT_SECTION_SIZE];
 
 	__declspec(allocate(".ucfgr")) struct HF_UserConfig const g_UserConfig;
 
@@ -53,7 +51,12 @@ static void HF_WriteFile(char const *Mode, char const *FileName, char const *Buf
 
 static void HF_PatchSection(char *Image, char const *SectionName, char const *Buffer, long long unsigned Size);
 
-static void HF_CursorCallback(GLFWwindow *Context, double X, double Y);
+static void HF_WindowResizeCallback(GLFWwindow *Context, int Width, int Height);
+static void HF_CursorPositionCallback(GLFWwindow *Context, double X, double Y);
+static void HF_MouseButtonCallback(GLFWwindow *Context, int Button, int Action, int Mods);
+static void HF_ScrollCallback(GLFWwindow *Context, double X, double Y);
+static void HF_KeyCallback(GLFWwindow *Context, int Key, int ScanCode, int Action, int Mods);
+static void HF_DropCallback(GLFWwindow *Context, int PathCount, const char **Paths);
 
 int main(int Argc, char** Argv)
 {
@@ -95,8 +98,13 @@ int main(int Argc, char** Argv)
 			if (Context)
 			{
 				glfwMakeContextCurrent(Context);
-				glfwSetCursorPosCallback(Context, HF_CursorCallback);
 				glfwSwapInterval(0);
+				glfwSetWindowSizeCallback(Context, HF_WindowResizeCallback);
+				glfwSetCursorPosCallback(Context, HF_CursorPositionCallback);
+				glfwSetMouseButtonCallback(Context, HF_MouseButtonCallback);
+				glfwSetScrollCallback(Context, HF_ScrollCallback);
+				glfwSetKeyCallback(Context, HF_KeyCallback);
+				glfwSetDropCallback(Context, HF_DropCallback);
 
 				int GLVersion = gladLoadGL();
 
@@ -104,8 +112,18 @@ int main(int Argc, char** Argv)
 				{
 					HF_FontInitFreeType();
 
-					struct HF_Shader *Shader = HF_ShaderAlloc(g_VertexShader, g_FragmentShader);
-					struct HF_Font *Font = HF_FontAlloc(g_DefaultFont, sizeof(g_DefaultFont), 1.0F, 0);
+					HF_Matrix4 Projection = HF_MATRIX4_IDENTITY;
+					HF_Matrix4 View = HF_MATRIX4_IDENTITY;
+					HF_Matrix4 Model = HF_MATRIX4_IDENTITY;
+
+					HF_ProjectionOrthographic(-1.0F, 1.0F, -1.0F, 1.0F, 0.001F, 100.0F, Projection);
+
+					HF_Vector3 Translation = { -0.9F, 0.9F, 0.0F };
+
+					HF_Matrix4Translate(Model, Translation);
+
+					struct HF_Shader *FontShader = HF_ShaderAlloc(g_VertexShader, g_FragmentShader);
+					struct HF_Font *Font = HF_FontAlloc(g_DefaultFont, sizeof(g_DefaultFont), 0.05F, 0);
 
 					while (!glfwWindowShouldClose(Context))
 					{
@@ -113,15 +131,20 @@ int main(int Argc, char** Argv)
 						TimeDelta = Time - TimePrev;
 						TimePrev = Time;
 
+						glViewport(0, 0, 1920, 1080);
 						glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
 						glClear(GL_COLOR_BUFFER_BIT);
+
+						HF_FontDrawBegin(Font, FontShader, Projection, View, Model);
+						HF_FontDraw(Font, 0.0F, 0.0F, g_FragmentShader);
+						HF_FontDrawEnd(Font, FontShader);
 
 						glfwSwapBuffers(Context);
 						glfwPollEvents();
 					}
 
 					HF_FontFree(Font);
-					HF_ShaderFree(Shader);
+					HF_ShaderFree(FontShader);
 
 					HF_FontDeinitFreeType();
 				}
@@ -200,7 +223,32 @@ static void HF_PatchSection(char *Image, char const *SectionName, char const *Bu
 
 }
 
-static void HF_CursorCallback(GLFWwindow *Context, double X, double Y)
+static void HF_WindowResizeCallback(GLFWwindow *Context, int Width, int Height)
+{
+
+}
+
+static void HF_CursorPositionCallback(GLFWwindow *Context, double X, double Y)
+{
+
+}
+
+static void HF_MouseButtonCallback(GLFWwindow *Context, int Button, int Action, int Mods)
+{
+
+}
+
+static void HF_ScrollCallback(GLFWwindow *Context, double X, double Y)
+{
+
+}
+
+static void HF_KeyCallback(GLFWwindow *Context, int Key, int ScanCode, int Action, int Mods)
+{
+
+}
+
+static void HF_DropCallback(GLFWwindow *Context, int PathCount, const char **Paths)
 {
 
 }

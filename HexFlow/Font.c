@@ -5,6 +5,7 @@
 #include <math.h>
 
 #include <HexFlow/Font.h>
+#include <HexFlow/Shader.h>
 
 #include <HexFlow/FreeType/freetype.h>
 
@@ -34,6 +35,9 @@
 #define HF_BUFFER_GLYPH_SIZE 0x100
 #define HF_BUFFER_CURVE_SIZE 0x1000
 
+#define HF_VERTEX_BUFFER_SIZE 0x10000
+#define HF_INDEX_BUFFER_SIZE 0x20000
+
 #define HF_GLYPH_SIZE 0x400
 
 struct HF_Glyph
@@ -58,7 +62,7 @@ struct HF_BufferVertex
 
 struct HF_BufferGlyph
 {
-	int Start, Count;
+	unsigned int Start, Count;
 };
 
 struct HF_BufferCurve
@@ -74,6 +78,7 @@ struct HF_Font
 
 	float WorldSize;
 	float EmSize;
+	float Dilation;
 
 	char unsigned Hinting;
 
@@ -89,12 +94,19 @@ struct HF_Font
 
 	FT_Face Face;
 	FT_Kerning_Mode KerningMode;
+
+	struct HF_BufferVertex VertexBuffer[HF_VERTEX_BUFFER_SIZE];
+	int unsigned IndexBuffer[HF_INDEX_BUFFER_SIZE];
+
+	int unsigned VertexBufferOffset;
+	int unsigned IndexBufferOffset;
 };
 
 static FT_Library m_Library = 0;
 
 static void HF_FontBuildGlyph(struct HF_Font *Font, int unsigned CharCode, int unsigned GlyphIndex);
 static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short LastIndex, float EmSize);
+static void HF_FontUploadBuffers(struct HF_Font *Font);
 
 void HF_FontInitFreeType(void)
 {
@@ -116,6 +128,7 @@ struct HF_Font* HF_FontAlloc(char unsigned const *FileBase, long long unsigned F
 
 	Font->WorldSize = WorldSize;
 	Font->Hinting = Hinting;
+	Font->Dilation = 0.1F;
 
 	if (Hinting)
 	{
@@ -170,10 +183,10 @@ struct HF_Font* HF_FontAlloc(char unsigned const *FileBase, long long unsigned F
 		}
 	}
 
-	//uploadBuffers(); TODO
+	HF_FontUploadBuffers(Font);
 
 	glBindTexture(GL_TEXTURE_BUFFER, Font->GlyphTexture);
-	glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, Font->GlyphBuffer);
+	glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32UI, Font->GlyphBuffer);
 	glBindTexture(GL_TEXTURE_BUFFER, 0);
 
 	glBindTexture(GL_TEXTURE_BUFFER, Font->CurveTexture);
@@ -201,7 +214,156 @@ void HF_FontFree(struct HF_Font *Font)
 	free(Font);
 }
 
-// TODO Cleanup this function!
+void HF_FontDrawBegin(struct HF_Font *Font, struct HF_Shader *Shader, HF_Matrix4 Projection, HF_Matrix4 View, HF_Matrix4 Model)
+{
+	HF_ShaderBind(Shader);
+
+	HF_ShaderSet1Matrix4(Shader, "Projection", Projection);
+	HF_ShaderSet1Matrix4(Shader, "View", View);
+	HF_ShaderSet1Matrix4(Shader, "Model", Model);
+
+	HF_ShaderSet1Int32(Shader, "Glyphs", 0);
+	HF_ShaderSet1Int32(Shader, "Curves", 1);
+	HF_ShaderSet4Real32(Shader, "Color", 1.0F, 1.0F, 1.0F, 1.0F);
+	HF_ShaderSet1Real32(Shader, "AntiAliasingWindowSize", 1.2F);
+	HF_ShaderSet1Int32(Shader, "EnableSuperSamplingAntiAliasing", 1);
+	HF_ShaderSet1Int32(Shader, "EnableControlPointsVisualization", 0);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_BUFFER, Font->GlyphTexture);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_BUFFER, Font->CurveTexture);
+
+	glActiveTexture(GL_TEXTURE0);
+
+	glEnable(GL_BLEND);
+
+	glBlendEquation(GL_FUNC_ADD);
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+void HF_FontDraw(struct HF_Font *Font, float X, float Y, char const *Text)
+{
+	float OrigX = X;
+
+	glBindVertexArray(Font->Vao);
+
+	int unsigned PrevGlyphIndex = 0;
+
+	for (char const *CharCode = Text; *CharCode != '\0'; CharCode++)
+	{
+		switch (*CharCode)
+		{
+			case '\r':
+			{
+				break;
+			}
+			case '\n':
+			{
+				X = OrigX;
+				Y -= (float)Font->Face->height / (float)Font->Face->units_per_EM * Font->WorldSize;
+
+				if (Font->Hinting)
+				{
+					Y = roundf(Y);
+				}
+
+				break;
+			}
+			default:
+			{
+				struct HF_Glyph* Glyph = &Font->Glyphs[*CharCode];
+
+				if ((PrevGlyphIndex != 0) && (Glyph->Index != 0))
+				{
+					FT_Vector Kerning = { 0 };
+
+					FT_CHECK(FT_Get_Kerning(Font->Face, PrevGlyphIndex, Glyph->Index, Font->KerningMode, &Kerning));
+
+					X += (float)Kerning.x / Font->EmSize * Font->WorldSize;
+				}
+
+				if (Glyph->CurveCount)
+				{
+					float D = Font->EmSize * Font->Dilation;
+
+					float U0 = (float)(Glyph->BearingX - D) / Font->EmSize;
+					float V0 = (float)(Glyph->BearingY - Glyph->Height - D) / Font->EmSize;
+					float U1 = (float)(Glyph->BearingX + Glyph->Width + D) / Font->EmSize;
+					float V1 = (float)(Glyph->BearingY + D) / Font->EmSize;
+
+					float X0 = X + U0 * Font->WorldSize;
+					float Y0 = Y + V0 * Font->WorldSize;
+					float X1 = X + U1 * Font->WorldSize;
+					float Y1 = Y + V1 * Font->WorldSize;
+
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].X = X0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].Y = Y0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].U = U0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].V = V0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].BufferIndex = Glyph->BufferIndex;
+
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].X = X1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].Y = Y0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].U = U1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].V = V0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].BufferIndex = Glyph->BufferIndex;
+
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].X = X1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].Y = Y1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].U = U1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].V = V1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].BufferIndex = Glyph->BufferIndex;
+
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].X = X0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].Y = Y1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].U = U0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].V = V1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].BufferIndex = Glyph->BufferIndex;
+
+					Font->IndexBuffer[Font->IndexBufferOffset + 0] = Font->VertexBufferOffset + 0;
+					Font->IndexBuffer[Font->IndexBufferOffset + 1] = Font->VertexBufferOffset + 1;
+					Font->IndexBuffer[Font->IndexBufferOffset + 2] = Font->VertexBufferOffset + 2;
+
+					Font->IndexBuffer[Font->IndexBufferOffset + 3] = Font->VertexBufferOffset + 2;
+					Font->IndexBuffer[Font->IndexBufferOffset + 4] = Font->VertexBufferOffset + 3;
+					Font->IndexBuffer[Font->IndexBufferOffset + 5] = Font->VertexBufferOffset + 0;
+
+					Font->VertexBufferOffset += 4;
+					Font->IndexBufferOffset += 6;
+				}
+
+				X += (float)Glyph->Advance / Font->EmSize * Font->WorldSize;
+
+				PrevGlyphIndex = Glyph->Index;
+
+				break;
+			}
+		}
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, Font->Vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(struct HF_BufferVertex) * Font->VertexBufferOffset, Font->VertexBuffer, GL_STREAM_DRAW);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Font->Ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int unsigned) * Font->IndexBufferOffset, Font->IndexBuffer, GL_STREAM_DRAW);
+
+	glDrawElements(GL_TRIANGLES, Font->IndexBufferOffset, GL_UNSIGNED_INT, 0);
+
+	glBindVertexArray(0);
+
+	Font->VertexBufferOffset = 0;
+	Font->IndexBufferOffset = 0;
+}
+
+void HF_FontDrawEnd(struct HF_Font *Font, struct HF_Shader *Shader)
+{
+	glDisable(GL_BLEND);
+
+	HF_ShaderUnbind(Shader);
+}
+
 static void HF_FontBuildGlyph(struct HF_Font *Font, int unsigned CharCode, int unsigned GlyphIndex)
 {
 	struct HF_BufferGlyph BufferGlyph = { 0 };
@@ -217,19 +379,18 @@ static void HF_FontBuildGlyph(struct HF_Font *Font, int unsigned CharCode, int u
 		StartIndex = Font->Face->glyph->outline.contours[ContourIndex] + 1;
 	}
 
-	BufferGlyph.Count = Font->BufferCurveOffset - BufferGlyph.Start;
-
-	// TODO: Update Font->BufferCurveOffset
-
 	int unsigned BufferIndex = Font->BufferGlyphOffset;
+	int unsigned CurveCount = Font->BufferCurveOffset - BufferGlyph.Start;
 
-	memcpy(&Font->BufferGlyphs[Font->BufferGlyphOffset], &BufferGlyph, sizeof(struct HF_BufferGlyph));
+	BufferGlyph.Count = CurveCount;
+
+	memcpy(&Font->BufferGlyphs[Font->BufferGlyphOffset++], &BufferGlyph, sizeof(struct HF_BufferGlyph));
 
 	struct HF_Glyph Glyph = { 0 };
 
 	Glyph.Index = GlyphIndex;
 	Glyph.BufferIndex = BufferIndex;
-	Glyph.CurveCount = BufferGlyph.Count;
+	Glyph.CurveCount = CurveCount;
 	Glyph.Width = Font->Face->glyph->metrics.width;
 	Glyph.Height = Font->Face->glyph->metrics.height;
 	Glyph.BearingX = Font->Face->glyph->metrics.horiBearingX;
@@ -237,8 +398,6 @@ static void HF_FontBuildGlyph(struct HF_Font *Font, int unsigned CharCode, int u
 	Glyph.Advance = Font->Face->glyph->metrics.horiAdvance;
 
 	memcpy(&Font->Glyphs[CharCode], &Glyph, sizeof(struct HF_Glyph));
-
-	// TODO: Update Font->BufferGlyphOffset
 }
 
 static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short LastIndex, float EmSize)
@@ -528,4 +687,15 @@ static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short 
 
 		memcpy(&Font->BufferCurves[Font->BufferCurveOffset++], &Curve, sizeof(struct HF_BufferCurve));
 	}
+}
+
+static void HF_FontUploadBuffers(struct HF_Font *Font)
+{
+	glBindBuffer(GL_TEXTURE_BUFFER, Font->GlyphBuffer);
+	glBufferData(GL_TEXTURE_BUFFER, sizeof(struct HF_BufferGlyph) * Font->BufferGlyphOffset, Font->BufferGlyphs, GL_STATIC_DRAW);
+	glBindBuffer(GL_TEXTURE_BUFFER, 0);
+
+	glBindBuffer(GL_TEXTURE_BUFFER, Font->CurveBuffer);
+	glBufferData(GL_TEXTURE_BUFFER, sizeof(struct HF_BufferCurve) * Font->BufferCurveOffset, Font->BufferCurves, GL_STATIC_DRAW);
+	glBindBuffer(GL_TEXTURE_BUFFER, 0);
 }
