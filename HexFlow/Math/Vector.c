@@ -1,26 +1,26 @@
 #include <math.h>
 
-#include <HexFlow/Vector.h>
+#include <HexFlow/Math/Vector.h>
 
-void HF_Vector2Set(HF_Vector2 V, float X, float Y)
+void HF_Vector2Set(HF_Vector2 V, HF_Vector2 R)
 {
-	V[0] = X;
-	V[1] = Y;
+	R[0] = V[0];
+	R[1] = V[1];
 }
 
-void HF_Vector3Set(HF_Vector3 V, float X, float Y, float Z)
+void HF_Vector3Set(HF_Vector3 V, HF_Vector3 R)
 {
-	V[0] = X;
-	V[1] = Y;
-	V[2] = Z;
+	R[0] = V[0];
+	R[1] = V[1];
+	R[2] = V[2];
 }
 
-void HF_Vector4Set(HF_Vector4 V, float X, float Y, float Z, float W)
+void HF_Vector4Set(HF_Vector4 V, HF_Vector4 R)
 {
-	V[0] = X;
-	V[1] = Y;
-	V[2] = Z;
-	V[3] = W;
+	R[0] = V[0];
+	R[1] = V[1];
+	R[2] = V[2];
+	R[3] = V[3];
 }
 
 void HF_Vector2Add(HF_Vector2 A, HF_Vector2 B, HF_Vector2 R)

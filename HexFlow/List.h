@@ -13,4 +13,4 @@ char unsigned HF_ListIsEmpty(HF_ListEntry *List);
 HF_ListEntry* HF_ListRemoveHead(HF_ListEntry *List);
 long long unsigned HF_ListCount(HF_ListEntry *List);
 
-#endif
+#endif // HF_LIST_H

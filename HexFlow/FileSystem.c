@@ -2,33 +2,50 @@
 #include <stdlib.h>
 
 #include <HexFlow/FileSystem.h>
+#include <HexFlow/Memory.h>
 
-void HF_FileSystemReadFile(char const *Mode, char const *FileName, char **Buffer, long long unsigned *Size)
+void HF_FileSystemReadText(char const *FileName, char **Buffer, long long unsigned *Size)
 {
-	FILE *File = fopen(FileName, Mode);
-
-	char unsigned FoundBinary = 0;
-	char const* ModeChar = Mode;
-
-	while (*ModeChar++ != '\0' && !FoundBinary) FoundBinary = *ModeChar == 'b';
+	FILE *File = fopen(FileName, "r");
 
 	fseek(File, 0, SEEK_END);
+
 	*Size = ftell(File);
-	*Buffer = calloc((*Size) + ((FoundBinary) ? 0 : 1), sizeof(char unsigned));
+	*Buffer = HF_MemoryAlloc((*Size) + 1, 0);
+
 	fseek(File, 0, SEEK_SET);
-
 	fread(*Buffer, 1, *Size, File);
-
 	fclose(File);
 }
 
-void HF_FileSystemWriteFile(char const *Mode, char const *FileName, char const *Buffer, long long unsigned Size)
+void HF_FileSystemReadBinary(char const *FileName, char **Buffer, long long unsigned *Size)
 {
-	FILE *File = fopen(FileName, Mode);
+	FILE *File = fopen(FileName, "rb");
+
+	fseek(File, 0, SEEK_END);
+
+	*Size = ftell(File);
+	*Buffer = HF_MemoryAlloc(*Size, 0);
 
 	fseek(File, 0, SEEK_SET);
+	fread(*Buffer, 1, *Size, File);
+	fclose(File);
+}
 
+void HF_FileSystemWriteText(char const *FileName, char const *Buffer, long long unsigned Size)
+{
+	FILE *File = fopen(FileName, "w");
+
+	fseek(File, 0, SEEK_SET);
 	fwrite(Buffer, 1, Size, File);
+	fclose(File);
+}
 
+void HF_FileSystemWriteBinary(char const *FileName, char const *Buffer, long long unsigned Size)
+{
+	FILE *File = fopen(FileName, "wb");
+
+	fseek(File, 0, SEEK_SET);
+	fwrite(Buffer, 1, Size, File);
 	fclose(File);
 }

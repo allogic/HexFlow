@@ -1,5 +1,5 @@
-#include <HexFlow/Vector.h>
-#include <HexFlow/Matrix.h>
+#include <HexFlow/Math/Vector.h>
+#include <HexFlow/Math/Matrix.h>
 
 void HF_Matrix4GetPosition(HF_Matrix4 M, HF_Vector3 P)
 {
@@ -35,6 +35,14 @@ void HF_Matrix4Zero(HF_Matrix4 M)
 	M[1][0] = M[1][1] = M[1][2] = M[1][3] = 0.0F;
 	M[2][0] = M[2][1] = M[2][2] = M[2][3] = 0.0F;
 	M[3][0] = M[3][1] = M[3][2] = M[3][3] = 0.0F;
+}
+
+void HF_Matrix4One(HF_Matrix4 M)
+{
+	M[0][0] = M[0][1] = M[0][2] = M[0][3] = 1.0F;
+	M[1][0] = M[1][1] = M[1][2] = M[1][3] = 1.0F;
+	M[2][0] = M[2][1] = M[2][2] = M[2][3] = 1.0F;
+	M[3][0] = M[3][1] = M[3][2] = M[3][3] = 1.0F;
 }
 
 void HF_Matrix4Identity(HF_Matrix4 M)

@@ -12,13 +12,13 @@ struct HF_Curve
 
 uniform usamplerBuffer Glyphs;
 uniform samplerBuffer Curves;
-uniform vec4 Color;
 uniform float AntiAliasingWindowSize = 1.0;
 uniform bool EnableSuperSamplingAntiAliasing = false;
 uniform bool EnableControlPointsVisualization = false;
 
 in vec2 UV;
 flat in uint BufferIndex;
+flat in uint Color;
 
 out vec4 OutputColor;
 
@@ -138,7 +138,12 @@ void main()
 
 	Alpha = clamp(Alpha, 0, 1);
 
-	OutputColor = Color * Alpha;
+	float R = float((Color >> 24) & 0xFF) / 255;
+	float G = float((Color >> 16) & 0xFF) / 255;
+	float B = float((Color >>  8) & 0xFF) / 255;
+	float A = float((Color >>  0) & 0xFF) / 255;
+
+	OutputColor = vec4(R, G, B, A) * Alpha;
 
 	if (EnableControlPointsVisualization)
 	{

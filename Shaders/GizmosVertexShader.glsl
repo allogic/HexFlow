@@ -6,17 +6,14 @@ uniform mat4 Model;
 
 layout (location = 0) in vec3 InputVertexPosition;
 layout (location = 1) in vec2 InputVertexUV;
-layout (location = 2) in uint InputVertexIndex;
-layout (location = 3) in uint InputVertexColor;
+layout (location = 2) in uint InputVertexColor;
 
 out vec2 UV;
-flat out uint BufferIndex;
 flat out uint Color;
 
 void main()
 {
 	UV = InputVertexUV;
-	BufferIndex = InputVertexIndex;
 	Color = InputVertexColor;
 
 	gl_Position = Projection * View * Model * vec4(InputVertexPosition, 1);

@@ -65,12 +65,18 @@ target_link_libraries (${TARGET_NAME} PRIVATE
 add_custom_command (TARGET ${TARGET_NAME}
 	POST_BUILD
 
-	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch r ${CMAKE_SOURCE_DIR}/Shaders/FontVertexShader.glsl .vshdr ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosVertexShader.glsl .gizvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 
-	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch r ${CMAKE_SOURCE_DIR}/Shaders/FontFragmentShader.glsl .fshdr ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosFragmentShader.glsl .gizfs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 
-	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch rb ${CMAKE_SOURCE_DIR}/Fonts/CommitMono-400-Regular.otf .dfont ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch ReadText ${CMAKE_SOURCE_DIR}/Shaders/FontVertexShader.glsl .fntvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch ReadText ${CMAKE_SOURCE_DIR}/Shaders/FontFragmentShader.glsl .fntfs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch ReadBinary ${CMAKE_SOURCE_DIR}/Fonts/CascadiaMonoPL-Regular.otf .dfont ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 )

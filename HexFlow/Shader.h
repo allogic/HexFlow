@@ -21,4 +21,4 @@ void HF_ShaderSet4Real32(struct HF_Shader *Shader, char const *Name, float V0, f
 
 void HF_ShaderSet1Matrix4(struct HF_Shader *Shader, char const *Name, HF_Matrix4 M);
 
-#endif
+#endif // HF_SHADER_H

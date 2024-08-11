@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <HexFlow/Shader.h>
+#include <HexFlow/Memory.h>
 
 #include <HexFlow/GLAD/glad.h>
 
@@ -16,11 +17,11 @@ struct HF_Shader
 static void HF_ShaderCheckCompileStatus(int unsigned Shader);
 static void HF_ShaderCheckLinkStatus(int unsigned Program);
 
-#endif
+#endif // HF_DEBUG
 
 struct HF_Shader* HF_ShaderAlloc(char const *VertexSource, char const *FragmentSource)
 {
-	struct HF_Shader* Shader = (struct HF_Shader*)calloc(1, sizeof(struct HF_Shader));
+	struct HF_Shader* Shader = (struct HF_Shader*)HF_MemoryAlloc(sizeof(struct HF_Shader), 0);
 
 	Shader->Program = glCreateProgram();
 
@@ -34,7 +35,7 @@ struct HF_Shader* HF_ShaderAlloc(char const *VertexSource, char const *FragmentS
 
 	HF_ShaderCheckCompileStatus(VertexShader);
 
-#endif
+#endif // HF_DEBUG
 
 	glShaderSource(FragmentShader, 1, &FragmentSource, 0);
 	glCompileShader(FragmentShader);
@@ -43,7 +44,7 @@ struct HF_Shader* HF_ShaderAlloc(char const *VertexSource, char const *FragmentS
 
 	HF_ShaderCheckCompileStatus(FragmentShader);
 
-#endif
+#endif // HF_DEBUG
 
 	glAttachShader(Shader->Program, VertexShader);
 	glAttachShader(Shader->Program, FragmentShader);
@@ -54,7 +55,7 @@ struct HF_Shader* HF_ShaderAlloc(char const *VertexSource, char const *FragmentS
 
 	HF_ShaderCheckLinkStatus(Shader->Program);
 
-#endif
+#endif // HF_DEBUG
 
 	glDeleteShader(VertexShader);
 	glDeleteShader(FragmentShader);
@@ -66,7 +67,7 @@ void HF_ShaderFree(struct HF_Shader* Shader)
 {
 	glDeleteProgram(Shader->Program);
 
-	free(Shader);
+	HF_MemoryFree(Shader);
 }
 
 void HF_ShaderBind(struct HF_Shader *Shader)
@@ -192,4 +193,4 @@ static void HF_ShaderCheckLinkStatus(int unsigned Program)
 	}
 }
 
-#endif
+#endif // HF_DEBUG

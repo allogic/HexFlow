@@ -6,6 +6,7 @@
 
 #include <HexFlow/Font.h>
 #include <HexFlow/Shader.h>
+#include <HexFlow/Memory.h>
 
 #include <HexFlow/FreeType/freetype.h>
 
@@ -26,11 +27,11 @@
 			} \
 		}
 
-#else
+#else // HF_DEBUG
 
 	#define FT_CHECK(EXPRESSION) (EXPRESSION)
 
-#endif
+#endif // HF_DEBUG
 
 #define HF_BUFFER_GLYPH_SIZE 0x100
 #define HF_BUFFER_CURVE_SIZE 0x1000
@@ -42,22 +43,20 @@
 
 struct HF_Glyph
 {
-	int unsigned Index;
-	int unsigned BufferIndex;
+	int unsigned Index, BufferIndex;
 	int unsigned CurveCount;
 
-	// TODO
-	// Important glyph metrics in font units.
-	FT_Pos Width, Height;
-	FT_Pos BearingX;
-	FT_Pos BearingY;
-	FT_Pos Advance;
+	int Width, Height;
+	int BearingX, BearingY;
+	int Advance;
 };
 
 struct HF_BufferVertex
 {
-	float X, Y, U, V;
-	int unsigned BufferIndex;
+	HF_Vector3 Position;
+	HF_Vector2 TextureCoords;
+
+	int unsigned BufferIndex, Color;
 };
 
 struct HF_BufferGlyph
@@ -67,7 +66,7 @@ struct HF_BufferGlyph
 
 struct HF_BufferCurve
 {
-	float X0, Y0, X1, Y1, X2, Y2;
+	float X0, Y0, X1, Y1, X2, Y2; // TODO
 };
 
 struct HF_Font
@@ -79,8 +78,6 @@ struct HF_Font
 	float WorldSize;
 	float EmSize;
 	float Dilation;
-
-	char unsigned Hinting;
 
 	struct HF_BufferGlyph BufferGlyphs[HF_BUFFER_GLYPH_SIZE];
 	struct HF_BufferCurve BufferCurves[HF_BUFFER_CURVE_SIZE];
@@ -118,32 +115,19 @@ void HF_FontDeinitFreeType(void)
 	FT_CHECK(FT_Done_FreeType(m_Library));
 }
 
-struct HF_Font* HF_FontAlloc(char unsigned const *FileBase, long long unsigned FileSize, float WorldSize, char unsigned Hinting)
+struct HF_Font* HF_FontAlloc(char unsigned const *FileBase, long long unsigned FileSize, float WorldSize)
 {
-	struct HF_Font* Font = (struct HF_Font*)calloc(1, sizeof(struct HF_Font));
+	struct HF_Font* Font = (struct HF_Font*)HF_MemoryAlloc(sizeof(struct HF_Font), 0);
 
 	FT_CHECK(FT_New_Memory_Face(m_Library, FileBase, (int unsigned)FileSize, 0, &Font->Face));
 
 	assert(Font->Face->face_flags & FT_FACE_FLAG_SCALABLE);
 
 	Font->WorldSize = WorldSize;
-	Font->Hinting = Hinting;
 	Font->Dilation = 0.1F;
-
-	if (Hinting)
-	{
-		Font->LoadFlags = FT_LOAD_NO_BITMAP;
-		Font->KerningMode = FT_KERNING_DEFAULT;
-		Font->EmSize = WorldSize * 64;
-
-		FT_CHECK(FT_Set_Pixel_Sizes(Font->Face, 0, (int unsigned)ceil(WorldSize)));
-	}
-	else
-	{
-		Font->LoadFlags = FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP;
-		Font->KerningMode = FT_KERNING_UNSCALED;
-		Font->EmSize = Font->Face->units_per_EM;
-	}
+	Font->LoadFlags = FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP;
+	Font->KerningMode = FT_KERNING_UNSCALED;
+	Font->EmSize = Font->Face->units_per_EM;
 
 	glGenVertexArrays(1, &Font->Vao);
 
@@ -162,9 +146,11 @@ struct HF_Font* HF_FontAlloc(char unsigned const *FileBase, long long unsigned F
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(0, 2, GL_FLOAT, 0, sizeof(struct HF_BufferVertex), (void*)(0));
-	glVertexAttribPointer(1, 2, GL_FLOAT, 0, sizeof(struct HF_BufferVertex), (void*)(sizeof(float) * 2));
-	glVertexAttribIPointer(2, 1, GL_INT, sizeof(struct HF_BufferVertex), (void*)(sizeof(float) * 4));
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(struct HF_BufferVertex), (void*)(0));
+	glVertexAttribPointer(1, 2, GL_FLOAT, 0, sizeof(struct HF_BufferVertex), (void*)(sizeof(HF_Vector3)));
+	glVertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(struct HF_BufferVertex), (void*)(sizeof(HF_Vector3) + sizeof(HF_Vector2)));
+	glVertexAttribIPointer(3, 1, GL_UNSIGNED_INT, sizeof(struct HF_BufferVertex), (void*)(sizeof(HF_Vector3) + sizeof(HF_Vector2) + sizeof(int unsigned)));
 	glBindVertexArray(0);
 
 	FT_CHECK(FT_Load_Glyph(Font->Face, 0, Font->LoadFlags));
@@ -211,10 +197,10 @@ void HF_FontFree(struct HF_Font *Font)
 
 	FT_Done_Face(Font->Face);
 
-	free(Font);
+	HF_MemoryFree(Font);
 }
 
-void HF_FontDrawBegin(struct HF_Font *Font, struct HF_Shader *Shader, HF_Matrix4 Projection, HF_Matrix4 View, HF_Matrix4 Model)
+void HF_FontBeginDraw(struct HF_Font *Font, struct HF_Shader *Shader, HF_Matrix4 Projection, HF_Matrix4 View, HF_Matrix4 Model)
 {
 	HF_ShaderBind(Shader);
 
@@ -224,8 +210,7 @@ void HF_FontDrawBegin(struct HF_Font *Font, struct HF_Shader *Shader, HF_Matrix4
 
 	HF_ShaderSet1Int32(Shader, "Glyphs", 0);
 	HF_ShaderSet1Int32(Shader, "Curves", 1);
-	HF_ShaderSet4Real32(Shader, "Color", 1.0F, 1.0F, 1.0F, 1.0F);
-	HF_ShaderSet1Real32(Shader, "AntiAliasingWindowSize", 1.2F);
+	HF_ShaderSet1Real32(Shader, "AntiAliasingWindowSize", 1.5F);
 	HF_ShaderSet1Int32(Shader, "EnableSuperSamplingAntiAliasing", 1);
 	HF_ShaderSet1Int32(Shader, "EnableControlPointsVisualization", 0);
 
@@ -236,16 +221,18 @@ void HF_FontDrawBegin(struct HF_Font *Font, struct HF_Shader *Shader, HF_Matrix4
 	glBindTexture(GL_TEXTURE_BUFFER, Font->CurveTexture);
 
 	glActiveTexture(GL_TEXTURE0);
-
-	glEnable(GL_BLEND);
-
-	glBlendEquation(GL_FUNC_ADD);
-	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void HF_FontDraw(struct HF_Font *Font, float X, float Y, char const *Text)
+void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, char const *Text)
 {
-	float OrigX = X;
+	float X = Position[0], Y = Position[1];
+
+	Y -= (float)Font->Face->height / (float)Font->Face->units_per_EM * Font->WorldSize;
+
+	if (Y < Size[1])
+	{
+		Size[1] = Y;
+	}
 
 	glBindVertexArray(Font->Vao);
 
@@ -261,19 +248,19 @@ void HF_FontDraw(struct HF_Font *Font, float X, float Y, char const *Text)
 			}
 			case '\n':
 			{
-				X = OrigX;
+				X = Position[0];
 				Y -= (float)Font->Face->height / (float)Font->Face->units_per_EM * Font->WorldSize;
 
-				if (Font->Hinting)
+				if (Y < Size[1])
 				{
-					Y = roundf(Y);
+					Size[1] = Y;
 				}
 
 				break;
 			}
 			default:
 			{
-				struct HF_Glyph* Glyph = &Font->Glyphs[*CharCode];
+				struct HF_Glyph *Glyph = &Font->Glyphs[*CharCode];
 
 				if ((PrevGlyphIndex != 0) && (Glyph->Index != 0))
 				{
@@ -282,6 +269,11 @@ void HF_FontDraw(struct HF_Font *Font, float X, float Y, char const *Text)
 					FT_CHECK(FT_Get_Kerning(Font->Face, PrevGlyphIndex, Glyph->Index, Font->KerningMode, &Kerning));
 
 					X += (float)Kerning.x / Font->EmSize * Font->WorldSize;
+
+					if (X > Size[0])
+					{
+						Size[0] = X;
+					}
 				}
 
 				if (Glyph->CurveCount)
@@ -298,29 +290,37 @@ void HF_FontDraw(struct HF_Font *Font, float X, float Y, char const *Text)
 					float X1 = X + U1 * Font->WorldSize;
 					float Y1 = Y + V1 * Font->WorldSize;
 
-					Font->VertexBuffer[Font->VertexBufferOffset + 0].X = X0;
-					Font->VertexBuffer[Font->VertexBufferOffset + 0].Y = Y0;
-					Font->VertexBuffer[Font->VertexBufferOffset + 0].U = U0;
-					Font->VertexBuffer[Font->VertexBufferOffset + 0].V = V0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[0] = X0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[1] = Y0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[2] = 0.0F;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[0] = U0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[1] = V0;
 					Font->VertexBuffer[Font->VertexBufferOffset + 0].BufferIndex = Glyph->BufferIndex;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].Color = 0xFFFFFFFF;
 
-					Font->VertexBuffer[Font->VertexBufferOffset + 1].X = X1;
-					Font->VertexBuffer[Font->VertexBufferOffset + 1].Y = Y0;
-					Font->VertexBuffer[Font->VertexBufferOffset + 1].U = U1;
-					Font->VertexBuffer[Font->VertexBufferOffset + 1].V = V0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[0] = X1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[1] = Y0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[2] = 0.0F;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[0] = U1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[1] = V0;
 					Font->VertexBuffer[Font->VertexBufferOffset + 1].BufferIndex = Glyph->BufferIndex;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].Color = 0xFFFFFFFF;
 
-					Font->VertexBuffer[Font->VertexBufferOffset + 2].X = X1;
-					Font->VertexBuffer[Font->VertexBufferOffset + 2].Y = Y1;
-					Font->VertexBuffer[Font->VertexBufferOffset + 2].U = U1;
-					Font->VertexBuffer[Font->VertexBufferOffset + 2].V = V1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[0] = X1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[1] = Y1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[2] = 0.0F;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[0] = U1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[1] = V1;
 					Font->VertexBuffer[Font->VertexBufferOffset + 2].BufferIndex = Glyph->BufferIndex;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].Color = 0xFFFFFFFF;
 
-					Font->VertexBuffer[Font->VertexBufferOffset + 3].X = X0;
-					Font->VertexBuffer[Font->VertexBufferOffset + 3].Y = Y1;
-					Font->VertexBuffer[Font->VertexBufferOffset + 3].U = U0;
-					Font->VertexBuffer[Font->VertexBufferOffset + 3].V = V1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[0] = X0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[1] = Y1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[2] = 0.0F;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[0] = U0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[1] = V1;
 					Font->VertexBuffer[Font->VertexBufferOffset + 3].BufferIndex = Glyph->BufferIndex;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].Color = 0xFFFFFFFF;
 
 					Font->IndexBuffer[Font->IndexBufferOffset + 0] = Font->VertexBufferOffset + 0;
 					Font->IndexBuffer[Font->IndexBufferOffset + 1] = Font->VertexBufferOffset + 1;
@@ -335,6 +335,11 @@ void HF_FontDraw(struct HF_Font *Font, float X, float Y, char const *Text)
 				}
 
 				X += (float)Glyph->Advance / Font->EmSize * Font->WorldSize;
+
+				if (X > Size[0])
+				{
+					Size[0] = X;
+				}
 
 				PrevGlyphIndex = Glyph->Index;
 
@@ -357,10 +362,150 @@ void HF_FontDraw(struct HF_Font *Font, float X, float Y, char const *Text)
 	Font->IndexBufferOffset = 0;
 }
 
-void HF_FontDrawEnd(struct HF_Font *Font, struct HF_Shader *Shader)
+void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, char unsigned const *Buffer, long long unsigned BufferSize, int unsigned NumOfColumns, float Spacing)
 {
-	glDisable(GL_BLEND);
+	float X = Position[0], Y = Position[1];
 
+	Y -= (float)Font->Face->height / (float)Font->Face->units_per_EM * Font->WorldSize;
+
+	if (Y < Size[1])
+	{
+		Size[1] = Y;
+	}
+
+	glBindVertexArray(Font->Vao);
+
+	int unsigned PrevGlyphIndex = 0;
+
+	for (long long unsigned BufferIndex = 0; BufferIndex < BufferSize; BufferIndex++)
+	{
+		if ((BufferIndex > 0) && (BufferIndex % NumOfColumns) == 0)
+		{
+			X = Position[0];
+			Y -= (float)Font->Face->height / (float)Font->Face->units_per_EM * Font->WorldSize;
+
+			if (Y < Size[1])
+			{
+				Size[1] = Y;
+			}
+		}
+
+		char HexRepresentation[3] = { 0 };
+
+		snprintf(HexRepresentation, sizeof(HexRepresentation), "%02X", Buffer[BufferIndex]);
+
+		for (char unsigned CharIndex = 0; CharIndex < 2; CharIndex++)
+		{
+			char unsigned CharCode = HexRepresentation[CharIndex];
+
+			struct HF_Glyph *Glyph = &Font->Glyphs[CharCode];
+
+			if ((PrevGlyphIndex != 0) && (Glyph->Index != 0))
+			{
+				FT_Vector Kerning = { 0 };
+
+				FT_CHECK(FT_Get_Kerning(Font->Face, PrevGlyphIndex, Glyph->Index, Font->KerningMode, &Kerning));
+
+				X += (float)Kerning.x / Font->EmSize * Font->WorldSize;
+
+				if (X > Size[0])
+				{
+					Size[0] = X;
+				}
+			}
+
+			if (Glyph->CurveCount)
+			{
+				float D = Font->EmSize * Font->Dilation;
+
+				float U0 = (float)(Glyph->BearingX - D) / Font->EmSize;
+				float V0 = (float)(Glyph->BearingY - Glyph->Height - D) / Font->EmSize;
+				float U1 = (float)(Glyph->BearingX + Glyph->Width + D) / Font->EmSize;
+				float V1 = (float)(Glyph->BearingY + D) / Font->EmSize;
+
+				float X0 = X + U0 * Font->WorldSize;
+				float Y0 = Y + V0 * Font->WorldSize;
+				float X1 = X + U1 * Font->WorldSize;
+				float Y1 = Y + V1 * Font->WorldSize;
+
+				Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[0] = X0;
+				Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[1] = Y0;
+				Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[2] = 0.0F;
+				Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[0] = U0;
+				Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[1] = V0;
+				Font->VertexBuffer[Font->VertexBufferOffset + 0].BufferIndex = Glyph->BufferIndex;
+				Font->VertexBuffer[Font->VertexBufferOffset + 0].Color = 0xFFFFFFFF;
+
+				Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[0] = X1;
+				Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[1] = Y0;
+				Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[2] = 0.0F;
+				Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[0] = U1;
+				Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[1] = V0;
+				Font->VertexBuffer[Font->VertexBufferOffset + 1].BufferIndex = Glyph->BufferIndex;
+				Font->VertexBuffer[Font->VertexBufferOffset + 1].Color = 0xFFFFFFFF;
+
+				Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[0] = X1;
+				Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[1] = Y1;
+				Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[2] = 0.0F;
+				Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[0] = U1;
+				Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[1] = V1;
+				Font->VertexBuffer[Font->VertexBufferOffset + 2].BufferIndex = Glyph->BufferIndex;
+				Font->VertexBuffer[Font->VertexBufferOffset + 2].Color = 0xFFFFFFFF;
+
+				Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[0] = X0;
+				Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[1] = Y1;
+				Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[2] = 0.0F;
+				Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[0] = U0;
+				Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[1] = V1;
+				Font->VertexBuffer[Font->VertexBufferOffset + 3].BufferIndex = Glyph->BufferIndex;
+				Font->VertexBuffer[Font->VertexBufferOffset + 3].Color = 0xFFFFFFFF;
+
+				Font->IndexBuffer[Font->IndexBufferOffset + 0] = Font->VertexBufferOffset + 0;
+				Font->IndexBuffer[Font->IndexBufferOffset + 1] = Font->VertexBufferOffset + 1;
+				Font->IndexBuffer[Font->IndexBufferOffset + 2] = Font->VertexBufferOffset + 2;
+
+				Font->IndexBuffer[Font->IndexBufferOffset + 3] = Font->VertexBufferOffset + 2;
+				Font->IndexBuffer[Font->IndexBufferOffset + 4] = Font->VertexBufferOffset + 3;
+				Font->IndexBuffer[Font->IndexBufferOffset + 5] = Font->VertexBufferOffset + 0;
+
+				Font->VertexBufferOffset += 4;
+				Font->IndexBufferOffset += 6;
+			}
+
+			X += (float)Glyph->Advance / Font->EmSize * Font->WorldSize;
+
+			if (X > Size[0])
+			{
+				Size[0] = X;
+			}
+
+			PrevGlyphIndex = Glyph->Index;
+		}
+
+		X += Spacing * Font->WorldSize;
+
+		if (X > Size[0])
+		{
+			Size[0] = X;
+		}
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, Font->Vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(struct HF_BufferVertex) * Font->VertexBufferOffset, Font->VertexBuffer, GL_STREAM_DRAW);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Font->Ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int unsigned) * Font->IndexBufferOffset, Font->IndexBuffer, GL_STREAM_DRAW);
+
+	glDrawElements(GL_TRIANGLES, Font->IndexBufferOffset, GL_UNSIGNED_INT, 0);
+
+	glBindVertexArray(0);
+
+	Font->VertexBufferOffset = 0;
+	Font->IndexBufferOffset = 0;
+}
+
+void HF_FontEndDraw(struct HF_Font *Font, struct HF_Shader *Shader)
+{
 	HF_ShaderUnbind(Shader);
 }
 
