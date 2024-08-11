@@ -27,34 +27,48 @@
 #define HF_SHADER_SECTION_SIZE 1024 * 4
 #define HF_FONT_SECTION_SIZE 1024 * 1024 * 1
 
+#define HF_WINDOW_TITLE_SIZE 64
+
 #define HF_ALIGN_PAGE_DOWN(VALUE) (((long long unsigned)(VALUE)) & ~((HF_PAGE_SIZE) - 1))
 #define HF_ALIGN_PAGE_UP(VALUE) ((((long long unsigned)(VALUE)) + ((HF_PAGE_SIZE) - 1)) & ~((HF_PAGE_SIZE) - 1))
 
+#define HF_GIZMOS_VERTEX_SHADER_SECTION_NAME ".gizvs"
+#define HF_GIZMOS_FRAGMENT_SHADER_SECTION_NAME ".gizfs"
+#define HF_FONT_VERTEX_SHADER_SECTION_NAME ".fntvs"
+#define HF_FONT_FRAGMENT_SHADER_SECTION_NAME ".fntfs"
+#define HF_DEFAULT_FONT_SECTION_NAME ".dfont"
+#define HF_USER_CONFIG_SECTION_NAME ".ucfgr"
+
 struct HF_UserConfig
 {
-	void* Dummy;
+	int unsigned WindowWidth;
+	int unsigned WindowHeight;
+
+	char const WindowTitle[HF_WINDOW_TITLE_SIZE];
+
+	char unsigned WindowAntiAliasing;
 };
 
 #ifdef HF_PLATFORM_WINDOWS
 
-	#pragma section(".gizvs", read)
-	#pragma section(".gizfs", read)
+	#pragma section(HF_GIZMOS_VERTEX_SHADER_SECTION_NAME, read)
+	#pragma section(HF_GIZMOS_FRAGMENT_SHADER_SECTION_NAME, read)
 
-	#pragma section(".fntvs", read)
-	#pragma section(".fntfs", read)
+	#pragma section(HF_FONT_VERTEX_SHADER_SECTION_NAME, read)
+	#pragma section(HF_FONT_FRAGMENT_SHADER_SECTION_NAME, read)
 
-	#pragma section(".dfont", read)
-	#pragma section(".ucfgr", read)
+	#pragma section(HF_DEFAULT_FONT_SECTION_NAME, read)
+	#pragma section(HF_USER_CONFIG_SECTION_NAME, read)
 
-	__declspec(allocate(".gizvs")) static char unsigned const m_GizmosVertexShader[HF_SHADER_SECTION_SIZE];
-	__declspec(allocate(".gizfs")) static char unsigned const m_GizmosFragmentShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(HF_GIZMOS_VERTEX_SHADER_SECTION_NAME)) static char unsigned const m_GizmosVertexShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(HF_GIZMOS_FRAGMENT_SHADER_SECTION_NAME)) static char unsigned const m_GizmosFragmentShader[HF_SHADER_SECTION_SIZE];
 
-	__declspec(allocate(".fntvs")) static char unsigned const m_FontVertexShader[HF_SHADER_SECTION_SIZE];
-	__declspec(allocate(".fntfs")) static char unsigned const m_FontFragmentShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(HF_FONT_VERTEX_SHADER_SECTION_NAME)) static char unsigned const m_FontVertexShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(HF_FONT_FRAGMENT_SHADER_SECTION_NAME)) static char unsigned const m_FontFragmentShader[HF_SHADER_SECTION_SIZE];
 
-	__declspec(allocate(".dfont")) static char unsigned const m_DefaultFont[HF_FONT_SECTION_SIZE];
+	__declspec(allocate(HF_DEFAULT_FONT_SECTION_NAME)) static char unsigned const m_DefaultFont[HF_FONT_SECTION_SIZE];
 
-	__declspec(allocate(".ucfgr")) static struct HF_UserConfig const m_UserConfig;
+	__declspec(allocate(HF_USER_CONFIG_SECTION_NAME)) static struct HF_UserConfig const m_UserConfig;
 
 #else // HF_PLATFORM_WINDOWS
 
@@ -62,10 +76,10 @@ struct HF_UserConfig
 
 #endif // HF_PLATFORM_WINDOWS
 
-static int m_Width = 1920;
-static int m_Height = 1080;
-
-static char m_WindowTitle[64] = "HexFlow";
+static int unsigned m_WindowWidth = 0;
+static int unsigned m_WindowHeight = 0;
+static char m_WindowTitle[HF_WINDOW_TITLE_SIZE] = { 0 };
+static int unsigned m_WindowAntiAliasing = 0;
 
 static HF_ListEntry m_GraphList = { 0 };
 
@@ -78,6 +92,9 @@ static HF_Matrix4 m_View = HF_MATRIX4_IDENTITY;
 static HF_Matrix4 m_Model = HF_MATRIX4_IDENTITY;
 
 static void HF_PatchSection(char *Image, char const *SectionName, char const *Buffer, long long unsigned Size);
+
+static void HF_LoadUserConfig(void);
+static void HF_UpdateProjection(void);
 
 static void HF_UpdateAllGraphs(void);
 static void HF_FreeAllGraphs(void);
@@ -96,7 +113,7 @@ int main(int Argc, char** Argv)
 {
 	if (Argc > 1)
 	{
-		if (strcmp("Patch", Argv[1]) == 0)
+		if (strcmp("PatchFile", Argv[1]) == 0)
 		{
 			char* ImageBuffer = 0;
 			char* PatchBuffer = 0;
@@ -121,20 +138,42 @@ int main(int Argc, char** Argv)
 			HF_MemoryFree(ImageBuffer);
 			HF_MemoryFree(PatchBuffer);
 		}
+		else if (strcmp("PatchDefaultUserConfig", Argv[1]) == 0)
+		{
+			char* ImageBuffer = 0;
+
+			long long unsigned ImageSize = 0;
+
+			HF_FileSystemReadBinary(Argv[0], &ImageBuffer, &ImageSize);
+
+			struct HF_UserConfig DefaultUserConfig;
+
+			DefaultUserConfig.WindowWidth = 1920;
+			DefaultUserConfig.WindowHeight = 1080;
+			strcpy((char*)DefaultUserConfig.WindowTitle, "HexFlow");
+			DefaultUserConfig.WindowAntiAliasing = 16;
+
+			HF_PatchSection(ImageBuffer, HF_USER_CONFIG_SECTION_NAME, (char const*)&DefaultUserConfig, sizeof(DefaultUserConfig));
+			HF_FileSystemWriteBinary(Argv[2], ImageBuffer, ImageSize);
+
+			HF_MemoryFree(ImageBuffer);
+		}
 	}
 	else
 	{
+		HF_LoadUserConfig();
+
 		HF_ListInitHead(&m_GraphList);
 
 		if (glfwInit())
 		{
 			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-			glfwWindowHint(GLFW_SAMPLES, 0);
+			glfwWindowHint(GLFW_SAMPLES, m_WindowAntiAliasing);
 			glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 			glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, 1);
 
-			GLFWwindow *Context = glfwCreateWindow(m_Width, m_Height, m_WindowTitle, 0, 0);
+			GLFWwindow *Context = glfwCreateWindow(m_WindowWidth, m_WindowHeight, m_WindowTitle, 0, 0);
 
 			if (Context)
 			{
@@ -153,13 +192,13 @@ int main(int Argc, char** Argv)
 				{
 					HF_FontInitFreeType();
 
-					HF_ClipSpacePerspective(HF_DEG_TO_RAD(45.0F), (float)m_Width / m_Height, 0.001F, 100.0F, m_Projection);
+					HF_UpdateProjection();
 
-					HF_Vector3 Eye = { 0.0F, 0.0F, -90.0F };
-					HF_Vector3 Center = { 0.0F, 0.0F, 0.0F };
-					HF_Vector3 Up = { 0.0F, 1.0F, 0.0F };
+					//HF_Vector3 Eye = { 0.0F, 0.0F, -20.0F };
+					//HF_Vector3 Center = { 0.0F, 0.0F, 0.0F };
+					//HF_Vector3 Up = { 0.0F, 1.0F, 0.0F };
 
-					HF_TransformLookAt(Eye, Center, Up, m_View);
+					//HF_TransformLookAt(Eye, Center, Up, m_View);
 
 					struct HF_Shader *GizmosShader = HF_ShaderAlloc(m_GizmosVertexShader, m_GizmosFragmentShader);
 					struct HF_Shader *FontShader = HF_ShaderAlloc(m_FontVertexShader, m_FontFragmentShader);
@@ -267,6 +306,25 @@ static void HF_PatchSection(char *Image, char const *SectionName, char const *Bu
 
 }
 
+static void HF_LoadUserConfig(void)
+{
+	m_WindowWidth = m_UserConfig.WindowWidth;
+	m_WindowHeight = m_UserConfig.WindowHeight;
+	strcpy(m_WindowTitle, m_UserConfig.WindowTitle);
+	m_WindowAntiAliasing = m_UserConfig.WindowAntiAliasing;
+}
+
+static void HF_UpdateProjection(void)
+{
+	float Scale = 15.0F;
+	float AspectRatio = (float)m_WindowWidth / m_WindowHeight;
+
+	float HalfWidth = ((float)m_WindowWidth / 2.0F) / Scale;
+	float HalfHeight = ((float)m_WindowHeight / 2.0F) / Scale;
+
+	HF_ClipSpaceOrthographic(-HalfWidth, HalfWidth, -HalfHeight, HalfHeight, 0.001F, 100.0F, m_Projection);
+}
+
 static void HF_UpdateAllGraphs(void)
 {
 	HF_ListEntry *ListEntry = m_GraphList.Flink;
@@ -329,12 +387,12 @@ static void HF_DrawAllGraphsFonts(struct HF_Font *Font, struct HF_Shader *Shader
 
 static void HF_WindowResizeCallback(GLFWwindow *Context, int Width, int Height)
 {
-	m_Width = Width;
-	m_Height = Height;
+	m_WindowWidth = (int unsigned)Width;
+	m_WindowHeight = (int unsigned)Height;
 
-	HF_ClipSpacePerspective(HF_DEG_TO_RAD(45.0F), (float)m_Width / m_Height, 0.001F, 100.0F, m_Projection);
+	glViewport(0, 0, Width, Height);
 
-	glViewport(0, 0, m_Width, m_Height);
+	HF_UpdateProjection();
 }
 
 static void HF_CursorPositionCallback(GLFWwindow *Context, double X, double Y)

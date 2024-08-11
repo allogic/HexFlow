@@ -26,7 +26,7 @@ struct HF_Graph* HF_GraphAlloc(char const *FileName)
 
 	HF_FileSystemReadText(FileName, &Graph->Buffer, &Graph->BufferSize);
 
-	HF_GraphAddNode(Graph, 0, 64);
+	HF_GraphAddNode(Graph, 0, 1024);
 
 	return Graph;
 }

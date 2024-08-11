@@ -58,8 +58,5 @@ void HF_NodeDrawFont(struct HF_Node *Node, struct HF_Font *Font)
 {
 	HF_Vector3 Position = { Node->Position[0], Node->Position[1], Node->Position[2] };
 
-	//HF_FontDrawText(Font, Position, Node->Size, "This is a Test!");
 	HF_FontDrawHex(Font, Position, Node->Size, Node->Buffer + Node->BufferOffset, Node->BufferSize, 16, 0.4F);
-
-	Node->Size[1] = -Node->Size[1];
 }

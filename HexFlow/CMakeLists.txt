@@ -32,7 +32,10 @@ target_compile_options (${TARGET_NAME} PRIVATE
 target_compile_definitions (${TARGET_NAME} PRIVATE
 	$<$<CONFIG:Debug>:HF_DEBUG>
 
-	$<$<PLATFORM_ID:Windows>:HF_PLATFORM_WINDOWS>
+	$<$<PLATFORM_ID:Windows>:
+		HF_PLATFORM_WINDOWS
+		_CRT_SECURE_NO_WARNINGS
+	>
 	$<$<PLATFORM_ID:Linux>:HF_PLATFORM_LINUX>
 )
 
@@ -65,18 +68,21 @@ target_link_libraries (${TARGET_NAME} PRIVATE
 add_custom_command (TARGET ${TARGET_NAME}
 	POST_BUILD
 
-	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosVertexShader.glsl .gizvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosVertexShader.glsl .gizvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 
-	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosFragmentShader.glsl .gizfs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosFragmentShader.glsl .gizfs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 
-	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch ReadText ${CMAKE_SOURCE_DIR}/Shaders/FontVertexShader.glsl .fntvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/FontVertexShader.glsl .fntvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 
-	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch ReadText ${CMAKE_SOURCE_DIR}/Shaders/FontFragmentShader.glsl .fntfs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/FontFragmentShader.glsl .fntfs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 
-	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe Patch ReadBinary ${CMAKE_SOURCE_DIR}/Fonts/CascadiaMonoPL-Regular.otf .dfont ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadBinary ${CMAKE_SOURCE_DIR}/Fonts/CascadiaMonoPL-Regular.otf .dfont ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchDefaultUserConfig ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 )

@@ -66,7 +66,7 @@ struct HF_BufferGlyph
 
 struct HF_BufferCurve
 {
-	float X0, Y0, X1, Y1, X2, Y2; // TODO
+	HF_Vector2 P0, P1, P2;
 };
 
 struct HF_Font
@@ -77,6 +77,7 @@ struct HF_Font
 
 	float WorldSize;
 	float EmSize;
+	float Height;
 	float Dilation;
 
 	struct HF_BufferGlyph BufferGlyphs[HF_BUFFER_GLYPH_SIZE];
@@ -121,12 +122,11 @@ struct HF_Font* HF_FontAlloc(char unsigned const *FileBase, long long unsigned F
 
 	FT_CHECK(FT_New_Memory_Face(m_Library, FileBase, (int unsigned)FileSize, 0, &Font->Face));
 
-	assert(Font->Face->face_flags & FT_FACE_FLAG_SCALABLE);
-
 	Font->WorldSize = WorldSize;
-	Font->Dilation = 0.1F;
+	Font->Dilation = 0.0F;
 	Font->LoadFlags = FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP;
 	Font->KerningMode = FT_KERNING_UNSCALED;
+	Font->Height = Font->Face->height;
 	Font->EmSize = Font->Face->units_per_EM;
 
 	glGenVertexArrays(1, &Font->Vao);
@@ -223,16 +223,14 @@ void HF_FontBeginDraw(struct HF_Font *Font, struct HF_Shader *Shader, HF_Matrix4
 	glActiveTexture(GL_TEXTURE0);
 }
 
+#define HF_CHECK_EXTEND_X(VALUE) if (fabsf(VALUE) > Size[0]) Size[0] = fabsf(VALUE)
+#define HF_CHECK_EXTEND_Y(VALUE) if (fabsf(VALUE) > Size[1]) Size[1] = fabsf(VALUE)
+
 void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, char const *Text)
 {
 	float X = Position[0], Y = Position[1];
 
-	Y -= (float)Font->Face->height / (float)Font->Face->units_per_EM * Font->WorldSize;
-
-	if (Y < Size[1])
-	{
-		Size[1] = Y;
-	}
+	Y -= Font->Height / ((float)Font->EmSize * Font->WorldSize);
 
 	glBindVertexArray(Font->Vao);
 
@@ -249,12 +247,7 @@ void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size,
 			case '\n':
 			{
 				X = Position[0];
-				Y -= (float)Font->Face->height / (float)Font->Face->units_per_EM * Font->WorldSize;
-
-				if (Y < Size[1])
-				{
-					Size[1] = Y;
-				}
+				Y -= Font->Height / ((float)Font->EmSize * Font->WorldSize);
 
 				break;
 			}
@@ -268,31 +261,31 @@ void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size,
 
 					FT_CHECK(FT_Get_Kerning(Font->Face, PrevGlyphIndex, Glyph->Index, Font->KerningMode, &Kerning));
 
-					X += (float)Kerning.x / Font->EmSize * Font->WorldSize;
-
-					if (X > Size[0])
-					{
-						Size[0] = X;
-					}
+					X += (float)Kerning.x / (Font->EmSize * Font->WorldSize);
 				}
 
 				if (Glyph->CurveCount)
 				{
 					float D = Font->EmSize * Font->Dilation;
 
-					float U0 = (float)(Glyph->BearingX - D) / Font->EmSize;
-					float V0 = (float)(Glyph->BearingY - Glyph->Height - D) / Font->EmSize;
-					float U1 = (float)(Glyph->BearingX + Glyph->Width + D) / Font->EmSize;
-					float V1 = (float)(Glyph->BearingY + D) / Font->EmSize;
+					float U0 = ((float)Glyph->BearingX - D) / Font->EmSize;
+					float V0 = ((float)Glyph->BearingY - (float)Glyph->Height - D) / Font->EmSize;
+					float U1 = ((float)Glyph->BearingX + (float)Glyph->Width + D) / Font->EmSize;
+					float V1 = ((float)Glyph->BearingY + D) / Font->EmSize;
 
 					float X0 = X + U0 * Font->WorldSize;
 					float Y0 = Y + V0 * Font->WorldSize;
 					float X1 = X + U1 * Font->WorldSize;
 					float Y1 = Y + V1 * Font->WorldSize;
 
+					HF_CHECK_EXTEND_X(X0);
+					HF_CHECK_EXTEND_Y(Y0);
+					HF_CHECK_EXTEND_X(X1);
+					HF_CHECK_EXTEND_Y(Y1);
+
 					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[0] = X0;
 					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[1] = Y0;
-					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[2] = 0.0F;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[2] = Position[2];
 					Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[0] = U0;
 					Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[1] = V0;
 					Font->VertexBuffer[Font->VertexBufferOffset + 0].BufferIndex = Glyph->BufferIndex;
@@ -300,7 +293,7 @@ void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size,
 
 					Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[0] = X1;
 					Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[1] = Y0;
-					Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[2] = 0.0F;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[2] = Position[2];
 					Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[0] = U1;
 					Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[1] = V0;
 					Font->VertexBuffer[Font->VertexBufferOffset + 1].BufferIndex = Glyph->BufferIndex;
@@ -308,7 +301,7 @@ void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size,
 
 					Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[0] = X1;
 					Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[1] = Y1;
-					Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[2] = 0.0F;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[2] = Position[2];
 					Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[0] = U1;
 					Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[1] = V1;
 					Font->VertexBuffer[Font->VertexBufferOffset + 2].BufferIndex = Glyph->BufferIndex;
@@ -316,7 +309,7 @@ void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size,
 
 					Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[0] = X0;
 					Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[1] = Y1;
-					Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[2] = 0.0F;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[2] = Position[2];
 					Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[0] = U0;
 					Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[1] = V1;
 					Font->VertexBuffer[Font->VertexBufferOffset + 3].BufferIndex = Glyph->BufferIndex;
@@ -334,12 +327,7 @@ void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size,
 					Font->IndexBufferOffset += 6;
 				}
 
-				X += (float)Glyph->Advance / Font->EmSize * Font->WorldSize;
-
-				if (X > Size[0])
-				{
-					Size[0] = X;
-				}
+				X += (float)Glyph->Advance / (Font->EmSize * Font->WorldSize);
 
 				PrevGlyphIndex = Glyph->Index;
 
@@ -360,18 +348,16 @@ void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size,
 
 	Font->VertexBufferOffset = 0;
 	Font->IndexBufferOffset = 0;
+
+	Size[0] -= Position[0];
+	Size[1] -= Position[1];
 }
 
 void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, char unsigned const *Buffer, long long unsigned BufferSize, int unsigned NumOfColumns, float Spacing)
 {
 	float X = Position[0], Y = Position[1];
 
-	Y -= (float)Font->Face->height / (float)Font->Face->units_per_EM * Font->WorldSize;
-
-	if (Y < Size[1])
-	{
-		Size[1] = Y;
-	}
+	Y -= Font->Height / ((float)Font->EmSize * Font->WorldSize);
 
 	glBindVertexArray(Font->Vao);
 
@@ -379,15 +365,10 @@ void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, 
 
 	for (long long unsigned BufferIndex = 0; BufferIndex < BufferSize; BufferIndex++)
 	{
-		if ((BufferIndex > 0) && (BufferIndex % NumOfColumns) == 0)
+		if ((BufferIndex != 0) && (BufferIndex % NumOfColumns) == 0)
 		{
 			X = Position[0];
-			Y -= (float)Font->Face->height / (float)Font->Face->units_per_EM * Font->WorldSize;
-
-			if (Y < Size[1])
-			{
-				Size[1] = Y;
-			}
+			Y -= Font->Height / ((float)Font->EmSize * Font->WorldSize);
 		}
 
 		char HexRepresentation[3] = { 0 };
@@ -406,31 +387,31 @@ void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, 
 
 				FT_CHECK(FT_Get_Kerning(Font->Face, PrevGlyphIndex, Glyph->Index, Font->KerningMode, &Kerning));
 
-				X += (float)Kerning.x / Font->EmSize * Font->WorldSize;
-
-				if (X > Size[0])
-				{
-					Size[0] = X;
-				}
+				X += (float)Kerning.x / (Font->EmSize * Font->WorldSize);
 			}
 
 			if (Glyph->CurveCount)
 			{
 				float D = Font->EmSize * Font->Dilation;
 
-				float U0 = (float)(Glyph->BearingX - D) / Font->EmSize;
-				float V0 = (float)(Glyph->BearingY - Glyph->Height - D) / Font->EmSize;
-				float U1 = (float)(Glyph->BearingX + Glyph->Width + D) / Font->EmSize;
-				float V1 = (float)(Glyph->BearingY + D) / Font->EmSize;
+				float U0 = ((float)Glyph->BearingX - D) / Font->EmSize;
+				float V0 = ((float)Glyph->BearingY - (float)Glyph->Height - D) / Font->EmSize;
+				float U1 = ((float)Glyph->BearingX + (float)Glyph->Width + D) / Font->EmSize;
+				float V1 = ((float)Glyph->BearingY + D) / Font->EmSize;
 
 				float X0 = X + U0 * Font->WorldSize;
 				float Y0 = Y + V0 * Font->WorldSize;
 				float X1 = X + U1 * Font->WorldSize;
 				float Y1 = Y + V1 * Font->WorldSize;
 
+				HF_CHECK_EXTEND_X(X0);
+				HF_CHECK_EXTEND_Y(Y0);
+				HF_CHECK_EXTEND_X(X1);
+				HF_CHECK_EXTEND_Y(Y1);
+
 				Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[0] = X0;
 				Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[1] = Y0;
-				Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[2] = 0.0F;
+				Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[2] = Position[2];
 				Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[0] = U0;
 				Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[1] = V0;
 				Font->VertexBuffer[Font->VertexBufferOffset + 0].BufferIndex = Glyph->BufferIndex;
@@ -438,7 +419,7 @@ void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, 
 
 				Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[0] = X1;
 				Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[1] = Y0;
-				Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[2] = 0.0F;
+				Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[2] = Position[2];
 				Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[0] = U1;
 				Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[1] = V0;
 				Font->VertexBuffer[Font->VertexBufferOffset + 1].BufferIndex = Glyph->BufferIndex;
@@ -446,7 +427,7 @@ void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, 
 
 				Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[0] = X1;
 				Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[1] = Y1;
-				Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[2] = 0.0F;
+				Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[2] = Position[2];
 				Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[0] = U1;
 				Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[1] = V1;
 				Font->VertexBuffer[Font->VertexBufferOffset + 2].BufferIndex = Glyph->BufferIndex;
@@ -454,7 +435,7 @@ void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, 
 
 				Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[0] = X0;
 				Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[1] = Y1;
-				Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[2] = 0.0F;
+				Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[2] = Position[2];
 				Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[0] = U0;
 				Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[1] = V1;
 				Font->VertexBuffer[Font->VertexBufferOffset + 3].BufferIndex = Glyph->BufferIndex;
@@ -472,22 +453,12 @@ void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, 
 				Font->IndexBufferOffset += 6;
 			}
 
-			X += (float)Glyph->Advance / Font->EmSize * Font->WorldSize;
-
-			if (X > Size[0])
-			{
-				Size[0] = X;
-			}
+			X += (float)Glyph->Advance / (Font->EmSize * Font->WorldSize);
 
 			PrevGlyphIndex = Glyph->Index;
 		}
 
 		X += Spacing * Font->WorldSize;
-
-		if (X > Size[0])
-		{
-			Size[0] = X;
-		}
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, Font->Vbo);
@@ -502,7 +473,13 @@ void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, 
 
 	Font->VertexBufferOffset = 0;
 	Font->IndexBufferOffset = 0;
+
+	Size[0] -= Position[0];
+	Size[1] -= Position[1];
 }
+
+#undef HF_CHECK_EXTEND_X
+#undef HF_CHECK_EXTEND_Y
 
 void HF_FontEndDraw(struct HF_Font *Font, struct HF_Shader *Shader)
 {
@@ -511,38 +488,32 @@ void HF_FontEndDraw(struct HF_Font *Font, struct HF_Shader *Shader)
 
 static void HF_FontBuildGlyph(struct HF_Font *Font, int unsigned CharCode, int unsigned GlyphIndex)
 {
-	struct HF_BufferGlyph BufferGlyph = { 0 };
+	Font->BufferGlyphs[Font->BufferGlyphOffset].Start = Font->BufferCurveOffset;
 
-	BufferGlyph.Start = Font->BufferCurveOffset;
-
-	short StartIndex = 0;
+	short FirstIndex = 0;
+	short LastIndex = 0;
 
 	for (short ContourIndex = 0; ContourIndex < Font->Face->glyph->outline.n_contours; ContourIndex++)
 	{
-		HF_FontConvertContour(Font, StartIndex, Font->Face->glyph->outline.contours[ContourIndex], Font->EmSize);
+		LastIndex = Font->Face->glyph->outline.contours[ContourIndex];
 
-		StartIndex = Font->Face->glyph->outline.contours[ContourIndex] + 1;
+		HF_FontConvertContour(Font, FirstIndex, LastIndex, Font->EmSize);
+
+		FirstIndex = Font->Face->glyph->outline.contours[ContourIndex] + 1;
 	}
 
-	int unsigned BufferIndex = Font->BufferGlyphOffset;
-	int unsigned CurveCount = Font->BufferCurveOffset - BufferGlyph.Start;
+	Font->BufferGlyphs[Font->BufferGlyphOffset].Count = Font->BufferCurveOffset - Font->BufferGlyphs[Font->BufferGlyphOffset].Start;
 
-	BufferGlyph.Count = CurveCount;
+	Font->Glyphs[CharCode].Index = GlyphIndex;
+	Font->Glyphs[CharCode].BufferIndex = Font->BufferGlyphOffset;
+	Font->Glyphs[CharCode].CurveCount = Font->BufferGlyphs[Font->BufferGlyphOffset].Count;
+	Font->Glyphs[CharCode].Width = Font->Face->glyph->metrics.width;
+	Font->Glyphs[CharCode].Height = Font->Face->glyph->metrics.height;
+	Font->Glyphs[CharCode].BearingX = Font->Face->glyph->metrics.horiBearingX;
+	Font->Glyphs[CharCode].BearingY = Font->Face->glyph->metrics.horiBearingY;
+	Font->Glyphs[CharCode].Advance = Font->Face->glyph->metrics.horiAdvance;
 
-	memcpy(&Font->BufferGlyphs[Font->BufferGlyphOffset++], &BufferGlyph, sizeof(struct HF_BufferGlyph));
-
-	struct HF_Glyph Glyph = { 0 };
-
-	Glyph.Index = GlyphIndex;
-	Glyph.BufferIndex = BufferIndex;
-	Glyph.CurveCount = CurveCount;
-	Glyph.Width = Font->Face->glyph->metrics.width;
-	Glyph.Height = Font->Face->glyph->metrics.height;
-	Glyph.BearingX = Font->Face->glyph->metrics.horiBearingX;
-	Glyph.BearingY = Font->Face->glyph->metrics.horiBearingY;
-	Glyph.Advance = Font->Face->glyph->metrics.horiAdvance;
-
-	memcpy(&Font->Glyphs[CharCode], &Glyph, sizeof(struct HF_Glyph));
+	Font->BufferGlyphOffset++;
 }
 
 static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short LastIndex, float EmSize)
@@ -647,14 +618,14 @@ static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short 
 				{
 					struct HF_BufferCurve Curve = { 0 };
 
-					Curve.X0 = B0X;
-					Curve.Y0 = B0Y;
+					Curve.P0[0] = B0X;
+					Curve.P0[1] = B0Y;
 
-					Curve.X1 = C0X;
-					Curve.Y1 = C0Y;
+					Curve.P1[0] = C0X;
+					Curve.P1[1] = C0Y;
 
-					Curve.X2 = DX;
-					Curve.Y2 = DY;
+					Curve.P2[0] = DX;
+					Curve.P2[1] = DY;
 
 					memcpy(&Font->BufferCurves[Font->BufferCurveOffset++], &Curve, sizeof(struct HF_BufferCurve));
 				}
@@ -662,14 +633,14 @@ static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short 
 				{
 					struct HF_BufferCurve Curve = { 0 };
 
-					Curve.X0 = DX;
-					Curve.Y0 = DY;
+					Curve.P0[0] = DX;
+					Curve.P0[1] = DY;
 
-					Curve.X1 = C1X;
-					Curve.Y1 = C1Y;
+					Curve.P1[0] = C1X;
+					Curve.P1[1] = C1Y;
 
-					Curve.X2 = B3X;
-					Curve.Y2 = B3Y;
+					Curve.P2[0] = B3X;
+					Curve.P2[1] = B3Y;
 
 					memcpy(&Font->BufferCurves[Font->BufferCurveOffset++], &Curve, sizeof(struct HF_BufferCurve));
 				}
@@ -678,14 +649,14 @@ static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short 
 			{
 				struct HF_BufferCurve Curve = { 0 };
 
-				Curve.X0 = PrevX;
-				Curve.Y0 = PrevY;
+				Curve.P0[0] = PrevX;
+				Curve.P0[1] = PrevY;
 
-				Curve.X1 = 0.5F * (PrevX + CurrX);
-				Curve.Y1 = 0.5F * (PrevY + CurrY);
+				Curve.P1[0] = 0.5F * (PrevX + CurrX);
+				Curve.P1[1] = 0.5F * (PrevY + CurrY);
 
-				Curve.X2 = CurrX;
-				Curve.Y2 = CurrY;
+				Curve.P2[0] = CurrX;
+				Curve.P2[1] = CurrY;
 
 				memcpy(&Font->BufferCurves[Font->BufferCurveOffset++], &Curve, sizeof(struct HF_BufferCurve));
 			}
@@ -693,14 +664,14 @@ static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short 
 			{
 				struct HF_BufferCurve Curve = { 0 };
 
-				Curve.X0 = StartX;
-				Curve.Y0 = StartY;
+				Curve.P0[0] = StartX;
+				Curve.P0[1] = StartY;
 
-				Curve.X1 = PrevX;
-				Curve.Y1 = PrevX;
+				Curve.P1[0] = PrevX;
+				Curve.P1[1] = PrevX;
 
-				Curve.X2 = CurrX;
-				Curve.Y2 = CurrY;
+				Curve.P2[0] = CurrX;
+				Curve.P2[1] = CurrY;
 
 				memcpy(&Font->BufferCurves[Font->BufferCurveOffset++], &Curve, sizeof(struct HF_BufferCurve));
 			}
@@ -724,14 +695,14 @@ static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short 
 
 				struct HF_BufferCurve Curve = { 0 };
 
-				Curve.X0 = StartX;
-				Curve.Y0 = StartY;
+				Curve.P0[0] = StartX;
+				Curve.P0[1] = StartY;
 
-				Curve.X1 = PrevX;
-				Curve.Y1 = PrevX;
+				Curve.P1[0] = PrevX;
+				Curve.P1[1] = PrevX;
 
-				Curve.X2 = MidX;
-				Curve.Y2 = MidY;
+				Curve.P2[0] = MidX;
+				Curve.P2[1] = MidY;
 
 				memcpy(&Font->BufferCurves[Font->BufferCurveOffset++], &Curve, sizeof(struct HF_BufferCurve));
 
@@ -775,14 +746,14 @@ static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short 
 		{
 			struct HF_BufferCurve Curve = { 0 };
 
-			Curve.X0 = B0X;
-			Curve.Y0 = B0Y;
+			Curve.P0[0] = B0X;
+			Curve.P0[1] = B0Y;
 
-			Curve.X1 = C0X;
-			Curve.Y1 = C0Y;
+			Curve.P1[0] = C0X;
+			Curve.P1[1] = C0Y;
 
-			Curve.X2 = DX;
-			Curve.Y2 = DY;
+			Curve.P2[0] = DX;
+			Curve.P2[1] = DY;
 
 			memcpy(&Font->BufferCurves[Font->BufferCurveOffset++], &Curve, sizeof(struct HF_BufferCurve));
 		}
@@ -790,14 +761,14 @@ static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short 
 		{
 			struct HF_BufferCurve Curve = { 0 };
 
-			Curve.X0 = DX;
-			Curve.Y0 = DY;
+			Curve.P0[0] = DX;
+			Curve.P0[1] = DY;
 
-			Curve.X1 = C1X;
-			Curve.Y1 = C1Y;
+			Curve.P1[0] = C1X;
+			Curve.P1[1] = C1Y;
 
-			Curve.X2 = B3X;
-			Curve.Y2 = B3Y;
+			Curve.P2[0] = B3X;
+			Curve.P2[1] = B3Y;
 
 			memcpy(&Font->BufferCurves[Font->BufferCurveOffset++], &Curve, sizeof(struct HF_BufferCurve));
 		}
@@ -806,14 +777,14 @@ static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short 
 	{
 		struct HF_BufferCurve Curve = { 0 };
 
-		Curve.X0 = PrevX;
-		Curve.Y0 = PrevY;
+		Curve.P0[0] = PrevX;
+		Curve.P0[1] = PrevY;
 
-		Curve.X1 = 0.5F * (PrevX + FirstX);
-		Curve.Y1 = 0.5F * (PrevY + FirstY);
+		Curve.P1[0] = 0.5F * (PrevX + FirstX);
+		Curve.P1[1] = 0.5F * (PrevY + FirstY);
 
-		Curve.X2 = FirstX;
-		Curve.Y2 = FirstY;
+		Curve.P2[0] = FirstX;
+		Curve.P2[1] = FirstY;
 
 		memcpy(&Font->BufferCurves[Font->BufferCurveOffset++], &Curve, sizeof(struct HF_BufferCurve));
 	}
@@ -821,14 +792,14 @@ static void HF_FontConvertContour(struct HF_Font *Font, short FirstIndex, short 
 	{
 		struct HF_BufferCurve Curve = { 0 };
 
-		Curve.X0 = StartX;
-		Curve.Y0 = StartY;
+		Curve.P0[0] = StartX;
+		Curve.P0[1] = StartY;
 
-		Curve.X1 = PrevX;
-		Curve.Y1 = PrevX;
+		Curve.P1[0] = PrevX;
+		Curve.P1[1] = PrevX;
 
-		Curve.X2 = FirstX;
-		Curve.Y2 = FirstY;
+		Curve.P2[0] = FirstX;
+		Curve.P2[1] = FirstY;
 
 		memcpy(&Font->BufferCurves[Font->BufferCurveOffset++], &Curve, sizeof(struct HF_BufferCurve));
 	}

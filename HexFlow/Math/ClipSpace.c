@@ -15,13 +15,13 @@ void HF_ClipSpaceOrthographic(float Left, float Right, float Bottom, float Top, 
 	R[3][2] = -NearZ / (FarZ - NearZ);
 }
 
-void HF_ClipSpacePerspective(float FieldOfView, float Aspect, float NearZ, float FarZ, HF_Matrix4 R)
+void HF_ClipSpacePerspective(float FieldOfView, float AspectRatio, float NearZ, float FarZ, HF_Matrix4 R)
 {
 	float TanHalfFieldOfView = tanf(FieldOfView / 2.0F);
 
 	HF_Matrix4Identity(R);
 
-	R[0][0] = 1.0F / (Aspect * TanHalfFieldOfView);
+	R[0][0] = 1.0F / (AspectRatio * TanHalfFieldOfView);
 	R[1][1] = 1.0F / TanHalfFieldOfView;
 	R[2][2] = FarZ / (FarZ - NearZ);
 	R[2][3] = 1.0F;
