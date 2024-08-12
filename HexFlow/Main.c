@@ -32,8 +32,14 @@
 #define HF_ALIGN_PAGE_DOWN(VALUE) (((long long unsigned)(VALUE)) & ~((HF_PAGE_SIZE) - 1))
 #define HF_ALIGN_PAGE_UP(VALUE) ((((long long unsigned)(VALUE)) + ((HF_PAGE_SIZE) - 1)) & ~((HF_PAGE_SIZE) - 1))
 
-#define HF_GIZMOS_VERTEX_SHADER_SECTION_NAME ".gizvs"
-#define HF_GIZMOS_FRAGMENT_SHADER_SECTION_NAME ".gizfs"
+#define HF_GIZMOS_LINE_VERTEX_SHADER_SECTION_NAME ".glvs"
+#define HF_GIZMOS_LINE_FRAGMENT_SHADER_SECTION_NAME ".glfs"
+#define HF_GIZMOS_QUAD_VERTEX_SHADER_SECTION_NAME ".gqvs"
+#define HF_GIZMOS_QUAD_FRAGMENT_SHADER_SECTION_NAME ".gqfs"
+#define HF_GIZMOS_LINE_BATCH_VERTEX_SHADER_SECTION_NAME ".glbvs"
+#define HF_GIZMOS_LINE_BATCH_FRAGMENT_SHADER_SECTION_NAME ".glbfs"
+#define HF_GIZMOS_QUAD_BATCH_VERTEX_SHADER_SECTION_NAME ".gqbvs"
+#define HF_GIZMOS_QUAD_BATCH_FRAGMENT_SHADER_SECTION_NAME ".gqbfs"
 #define HF_FONT_VERTEX_SHADER_SECTION_NAME ".fntvs"
 #define HF_FONT_FRAGMENT_SHADER_SECTION_NAME ".fntfs"
 #define HF_DEFAULT_FONT_SECTION_NAME ".dfont"
@@ -51,26 +57,33 @@ struct HF_UserConfig
 
 #ifdef HF_PLATFORM_WINDOWS
 
-	#pragma section(HF_GIZMOS_VERTEX_SHADER_SECTION_NAME, read)
-	#pragma section(HF_GIZMOS_FRAGMENT_SHADER_SECTION_NAME, read)
-
+	#pragma section(HF_GIZMOS_LINE_VERTEX_SHADER_SECTION_NAME, read)
+	#pragma section(HF_GIZMOS_LINE_FRAGMENT_SHADER_SECTION_NAME, read)
+	#pragma section(HF_GIZMOS_QUAD_VERTEX_SHADER_SECTION_NAME, read)
+	#pragma section(HF_GIZMOS_QUAD_FRAGMENT_SHADER_SECTION_NAME, read)
+	#pragma section(HF_GIZMOS_LINE_BATCH_VERTEX_SHADER_SECTION_NAME, read)
+	#pragma section(HF_GIZMOS_LINE_BATCH_FRAGMENT_SHADER_SECTION_NAME, read)
+	#pragma section(HF_GIZMOS_QUAD_BATCH_VERTEX_SHADER_SECTION_NAME, read)
+	#pragma section(HF_GIZMOS_QUAD_BATCH_FRAGMENT_SHADER_SECTION_NAME, read)
 	#pragma section(HF_FONT_VERTEX_SHADER_SECTION_NAME, read)
 	#pragma section(HF_FONT_FRAGMENT_SHADER_SECTION_NAME, read)
-
 	#pragma section(HF_DEFAULT_FONT_SECTION_NAME, read)
 	#pragma section(HF_USER_CONFIG_SECTION_NAME, read)
 
-	__declspec(allocate(HF_GIZMOS_VERTEX_SHADER_SECTION_NAME)) static char unsigned const m_GizmosVertexShader[HF_SHADER_SECTION_SIZE];
-	__declspec(allocate(HF_GIZMOS_FRAGMENT_SHADER_SECTION_NAME)) static char unsigned const m_GizmosFragmentShader[HF_SHADER_SECTION_SIZE];
-
+	__declspec(allocate(HF_GIZMOS_LINE_VERTEX_SHADER_SECTION_NAME)) static char unsigned const m_GizmosLineVertexShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(HF_GIZMOS_LINE_FRAGMENT_SHADER_SECTION_NAME)) static char unsigned const m_GizmosLineFragmentShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(HF_GIZMOS_QUAD_VERTEX_SHADER_SECTION_NAME)) static char unsigned const m_GizmosQuadVertexShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(HF_GIZMOS_QUAD_FRAGMENT_SHADER_SECTION_NAME)) static char unsigned const m_GizmosQuadFragmentShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(HF_GIZMOS_LINE_BATCH_VERTEX_SHADER_SECTION_NAME)) static char unsigned const m_GizmosLineBatchVertexShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(HF_GIZMOS_LINE_BATCH_FRAGMENT_SHADER_SECTION_NAME)) static char unsigned const m_GizmosLineBatchFragmentShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(HF_GIZMOS_QUAD_BATCH_VERTEX_SHADER_SECTION_NAME)) static char unsigned const m_GizmosQuadBatchVertexShader[HF_SHADER_SECTION_SIZE];
+	__declspec(allocate(HF_GIZMOS_QUAD_BATCH_FRAGMENT_SHADER_SECTION_NAME)) static char unsigned const m_GizmosQuadBatchFragmentShader[HF_SHADER_SECTION_SIZE];
 	__declspec(allocate(HF_FONT_VERTEX_SHADER_SECTION_NAME)) static char unsigned const m_FontVertexShader[HF_SHADER_SECTION_SIZE];
 	__declspec(allocate(HF_FONT_FRAGMENT_SHADER_SECTION_NAME)) static char unsigned const m_FontFragmentShader[HF_SHADER_SECTION_SIZE];
-
 	__declspec(allocate(HF_DEFAULT_FONT_SECTION_NAME)) static char unsigned const m_DefaultFont[HF_FONT_SECTION_SIZE];
-
 	__declspec(allocate(HF_USER_CONFIG_SECTION_NAME)) static struct HF_UserConfig const m_UserConfig;
 
-#else // HF_PLATFORM_WINDOWS
+#else
 
 	#error "Platform not supported"
 
@@ -99,7 +112,7 @@ static void HF_UpdateProjection(void);
 static void HF_UpdateAllGraphs(void);
 static void HF_FreeAllGraphs(void);
 
-static void HF_DrawAllGraphsGizmos(struct HF_Gizmos *Gizmos, struct HF_Shader *Shader);
+static void HF_DrawAllGraphsGizmos(struct HF_Gizmos *Gizmos, struct HF_Shader *LineShader, struct HF_Shader *QuadShader, struct HF_Shader *LineBatchShader, struct HF_Shader *QuadBatchShader);
 static void HF_DrawAllGraphsFonts(struct HF_Font *Font, struct HF_Shader *Shader);
 
 static void HF_WindowResizeCallback(GLFWwindow *Context, int Width, int Height);
@@ -200,7 +213,10 @@ int main(int Argc, char** Argv)
 
 					//HF_TransformLookAt(Eye, Center, Up, m_View);
 
-					struct HF_Shader *GizmosShader = HF_ShaderAlloc(m_GizmosVertexShader, m_GizmosFragmentShader);
+					struct HF_Shader *GizmosLineShader = HF_ShaderAlloc(m_GizmosLineVertexShader, m_GizmosLineFragmentShader);
+					struct HF_Shader *GizmosQuadShader = HF_ShaderAlloc(m_GizmosQuadVertexShader, m_GizmosQuadFragmentShader);
+					struct HF_Shader *GizmosLineBatchShader = HF_ShaderAlloc(m_GizmosLineBatchVertexShader, m_GizmosLineBatchFragmentShader);
+					struct HF_Shader *GizmosQuadBatchShader = HF_ShaderAlloc(m_GizmosQuadBatchVertexShader, m_GizmosQuadBatchFragmentShader);
 					struct HF_Shader *FontShader = HF_ShaderAlloc(m_FontVertexShader, m_FontFragmentShader);
 
 					struct HF_Gizmos *Gizmos = HF_GizmosAlloc();
@@ -233,8 +249,8 @@ int main(int Argc, char** Argv)
 
 						HF_UpdateAllGraphs();
 
-						HF_DrawAllGraphsGizmos(Gizmos, GizmosShader);
 						HF_DrawAllGraphsFonts(Font, FontShader);
+						HF_DrawAllGraphsGizmos(Gizmos, GizmosLineShader, GizmosQuadShader, GizmosLineBatchShader, GizmosQuadBatchShader);
 
 						glDisable(GL_BLEND);
 						glDisable(GL_DEPTH_TEST);
@@ -250,7 +266,10 @@ int main(int Argc, char** Argv)
 					HF_GizmosFree(Gizmos);
 
 					HF_ShaderFree(FontShader);
-					HF_ShaderFree(GizmosShader);
+					HF_ShaderFree(GizmosLineShader);
+					HF_ShaderFree(GizmosQuadShader);
+					HF_ShaderFree(GizmosLineBatchShader);
+					HF_ShaderFree(GizmosQuadBatchShader);
 
 					HF_FontDeinitFreeType();
 				}
@@ -298,7 +317,7 @@ static void HF_PatchSection(char *Image, char const *SectionName, char const *Bu
 		}
 	}
 
-#else // HF_PLATFORM_WINDOWS
+#else
 
 	#error "Platform not supported"
 
@@ -323,6 +342,10 @@ static void HF_UpdateProjection(void)
 	float HalfHeight = ((float)m_WindowHeight / 2.0F) / Scale;
 
 	HF_ClipSpaceOrthographic(-HalfWidth, HalfWidth, -HalfHeight, HalfHeight, 0.001F, 100.0F, m_Projection);
+
+	HF_Vector3 Position = { -HalfWidth + (100.0F / Scale), HalfHeight - (50.0F / Scale), 0.0F };
+
+	HF_Matrix4SetPosition(m_View, Position);
 }
 
 static void HF_UpdateAllGraphs(void)
@@ -351,21 +374,67 @@ static void HF_FreeAllGraphs(void)
 	}
 }
 
-static void HF_DrawAllGraphsGizmos(struct HF_Gizmos *Gizmos, struct HF_Shader *Shader)
+static void HF_DrawAllGraphsGizmos(struct HF_Gizmos *Gizmos, struct HF_Shader *LineShader, struct HF_Shader *QuadShader, struct HF_Shader *LineBatchShader, struct HF_Shader *QuadBatchShader)
 {
-	HF_GizmosBeginDraw(Gizmos, Shader, m_Projection, m_View, m_Model);
+	HF_ListEntry *ListEntry = 0;
 
-	HF_ListEntry *ListEntry = m_GraphList.Flink;
+	HF_GizmosBeginLines(Gizmos, LineShader, m_Projection, m_View, m_Model);
+
+	ListEntry = m_GraphList.Flink;
 	while (ListEntry != &m_GraphList)
 	{
-		struct HF_Graph *Graph = (struct HF_Graph*)ListEntry;
+		struct HF_Graph* Graph = (struct HF_Graph*)ListEntry;
 
-		HF_GraphDrawGizmos(Graph, Gizmos);
+		HF_GraphDrawLines(Graph, Gizmos);
 
 		ListEntry = ListEntry->Flink;
 	}
 
-	HF_GizmosEndDraw(Gizmos, Shader);
+	HF_GizmosEndLines(Gizmos, LineShader);
+
+	HF_GizmosBeginQuads(Gizmos, QuadShader, m_Projection, m_View, m_Model);
+
+	ListEntry = m_GraphList.Flink;
+	while (ListEntry != &m_GraphList)
+	{
+		struct HF_Graph *Graph = (struct HF_Graph*)ListEntry;
+
+		HF_GraphDrawQuads(Graph, Gizmos);
+
+		ListEntry = ListEntry->Flink;
+	}
+
+	HF_GizmosEndQuads(Gizmos, QuadShader);
+
+	HF_GizmosBeginLineBatch(Gizmos, LineBatchShader, m_Projection, m_View);
+
+	ListEntry = m_GraphList.Flink;
+	while (ListEntry != &m_GraphList)
+	{
+		struct HF_Graph *Graph = (struct HF_Graph*)ListEntry;
+
+		HF_GraphDrawLineBatch(Graph, Gizmos);
+
+		ListEntry = ListEntry->Flink;
+	}
+
+	HF_GizmosDrawLineBatch(Gizmos);
+	HF_GizmosEndLineBatch(Gizmos, LineBatchShader);
+
+	HF_GizmosBeginQuadBatch(Gizmos, QuadBatchShader, m_Projection, m_View);
+
+	ListEntry = m_GraphList.Flink;
+	while (ListEntry != &m_GraphList)
+	{
+		struct HF_Graph *Graph = (struct HF_Graph*)ListEntry;
+
+		HF_GraphDrawQuadBatch(Graph, Gizmos);
+
+		ListEntry = ListEntry->Flink;
+	}
+
+	HF_GizmosDrawQuadBatch(Gizmos);
+	HF_GizmosEndQuadBatch(Gizmos, QuadBatchShader);
 }
 
 static void HF_DrawAllGraphsFonts(struct HF_Font *Font, struct HF_Shader *Shader)

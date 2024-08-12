@@ -25,7 +25,7 @@ void* HF_MemoryAlloc(long long unsigned Size, void const *Reference)
 
 	return Block;
 
-#else // HF_DEBUG
+#else
 
 	return calloc(1, Size);
 
@@ -44,7 +44,7 @@ void HF_MemoryFree(void *Block)
 
 	free(RealBlock);
 
-#else // HF_DEBUG
+#else
 
 	free(RealBlock);
 

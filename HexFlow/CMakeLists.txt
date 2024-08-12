@@ -68,10 +68,28 @@ target_link_libraries (${TARGET_NAME} PRIVATE
 add_custom_command (TARGET ${TARGET_NAME}
 	POST_BUILD
 
-	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosVertexShader.glsl .gizvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosLineVertexShader.glsl .glvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 
-	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosFragmentShader.glsl .gizfs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosLineFragmentShader.glsl .glfs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosQuadVertexShader.glsl .gqvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosQuadFragmentShader.glsl .gqfs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosLineBatchVertexShader.glsl .glbvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosLineBatchFragmentShader.glsl .glbfs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosQuadBatchVertexShader.glsl .gqbvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
+
+	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/GizmosQuadBatchFragmentShader.glsl .gqbfs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe
 	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe
 
 	COMMAND ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}.exe PatchFile ReadText ${CMAKE_SOURCE_DIR}/Shaders/FontVertexShader.glsl .fntvs ${CMAKE_SOURCE_DIR}/$<CONFIG>/${TARGET_NAME}Patched.exe

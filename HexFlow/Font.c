@@ -27,7 +27,7 @@
 			} \
 		}
 
-#else // HF_DEBUG
+#else
 
 	#define FT_CHECK(EXPRESSION) (EXPRESSION)
 
@@ -210,7 +210,7 @@ void HF_FontBeginDraw(struct HF_Font *Font, struct HF_Shader *Shader, HF_Matrix4
 
 	HF_ShaderSet1Int32(Shader, "Glyphs", 0);
 	HF_ShaderSet1Int32(Shader, "Curves", 1);
-	HF_ShaderSet1Real32(Shader, "AntiAliasingWindowSize", 1.5F);
+	HF_ShaderSet1Real32(Shader, "AntiAliasingWindowSize", 1.0F);
 	HF_ShaderSet1Int32(Shader, "EnableSuperSamplingAntiAliasing", 1);
 	HF_ShaderSet1Int32(Shader, "EnableControlPointsVisualization", 0);
 

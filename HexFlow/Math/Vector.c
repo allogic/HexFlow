@@ -2,6 +2,27 @@
 
 #include <HexFlow/Math/Vector.h>
 
+void HF_Vector2Init(HF_Vector2 R, float X, float Y)
+{
+	R[0] = X;
+	R[1] = Y;
+}
+
+void HF_Vector3Init(HF_Vector3 R, float X, float Y, float Z)
+{
+	R[0] = X;
+	R[1] = Y;
+	R[2] = Z;
+}
+
+void HF_Vector4Init(HF_Vector4 R, float X, float Y, float Z, float W)
+{
+	R[0] = X;
+	R[1] = Y;
+	R[2] = Z;
+	R[3] = W;
+}
+
 void HF_Vector2Set(HF_Vector2 V, HF_Vector2 R)
 {
 	R[0] = V[0];
@@ -44,6 +65,27 @@ void HF_Vector4Add(HF_Vector4 A, HF_Vector4 B, HF_Vector4 R)
 	R[3] = A[3] + B[3];
 }
 
+void HF_Vector2Sub(HF_Vector2 A, HF_Vector2 B, HF_Vector2 R)
+{
+	R[0] = A[0] - B[0];
+	R[1] = A[1] - B[1];
+}
+
+void HF_Vector3Sub(HF_Vector3 A, HF_Vector3 B, HF_Vector3 R)
+{
+	R[0] = A[0] - B[0];
+	R[1] = A[1] - B[1];
+	R[2] = A[2] - B[2];
+}
+
+void HF_Vector4Sub(HF_Vector4 A, HF_Vector4 B, HF_Vector4 R)
+{
+	R[0] = A[0] - B[0];
+	R[1] = A[1] - B[1];
+	R[2] = A[2] - B[2];
+	R[3] = A[3] - B[3];
+}
+
 void HF_Vector2DivScalar(HF_Vector2 V, float S, HF_Vector2 R)
 {
 	R[0] = V[0] / S;
@@ -63,13 +105,6 @@ void HF_Vector4DivScalar(HF_Vector4 V, float S, HF_Vector4 R)
 	R[1] = V[1] / S;
 	R[2] = V[2] / S;
 	R[3] = V[3] / S;
-}
-
-void HF_Vector3Sub(HF_Vector3 A, HF_Vector3 B, HF_Vector3 R)
-{
-	R[0] = A[0] - B[0];
-	R[1] = A[1] - B[1];
-	R[2] = A[2] - B[2];
 }
 
 void HF_Vector3MulAdd(HF_Vector3 V, float S, HF_Vector3 R)
