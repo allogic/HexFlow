@@ -10,15 +10,17 @@
 #endif // HF_PLATFORM_WINDOWS
 
 #include <HexFlow/FileSystem.h>
-#include <HexFlow/Gizmos.h>
 #include <HexFlow/Font.h>
-#include <HexFlow/Shader.h>
-#include <HexFlow/Memory.h>
+#include <HexFlow/Gizmos.h>
 #include <HexFlow/List.h>
+#include <HexFlow/Memory.h>
+#include <HexFlow/Shader.h>
 
 #include <HexFlow/Math/Math.h>
 
 #include <HexFlow/NodeGraph/Graph.h>
+
+#include <HexFlow/NodeGraph/Nodes/TextEditorNode.h>
 
 #include <HexFlow/GLAD/glad.h>
 
@@ -355,9 +357,9 @@ static void HF_UpdateAllGraphs(void)
 	{
 		struct HF_Graph *Graph = (struct HF_Graph*)ListEntry;
 
-		HF_GraphUpdate(Graph);
-
 		ListEntry = ListEntry->Flink;
+
+		HF_GraphUpdate(Graph);
 	}
 }
 
@@ -385,9 +387,9 @@ static void HF_DrawAllGraphsGizmos(struct HF_Gizmos *Gizmos, struct HF_Shader *L
 	{
 		struct HF_Graph* Graph = (struct HF_Graph*)ListEntry;
 
-		HF_GraphDrawLines(Graph, Gizmos);
-
 		ListEntry = ListEntry->Flink;
+
+		HF_GraphDrawLines(Graph, Gizmos);
 	}
 
 	HF_GizmosEndLines(Gizmos, LineShader);
@@ -399,9 +401,9 @@ static void HF_DrawAllGraphsGizmos(struct HF_Gizmos *Gizmos, struct HF_Shader *L
 	{
 		struct HF_Graph *Graph = (struct HF_Graph*)ListEntry;
 
-		HF_GraphDrawQuads(Graph, Gizmos);
-
 		ListEntry = ListEntry->Flink;
+
+		HF_GraphDrawQuads(Graph, Gizmos);
 	}
 
 	HF_GizmosEndQuads(Gizmos, QuadShader);
@@ -413,9 +415,9 @@ static void HF_DrawAllGraphsGizmos(struct HF_Gizmos *Gizmos, struct HF_Shader *L
 	{
 		struct HF_Graph *Graph = (struct HF_Graph*)ListEntry;
 
-		HF_GraphDrawLineBatch(Graph, Gizmos);
-
 		ListEntry = ListEntry->Flink;
+
+		HF_GraphDrawLineBatch(Graph, Gizmos);
 	}
 
 	HF_GizmosDrawLineBatch(Gizmos);
@@ -428,9 +430,9 @@ static void HF_DrawAllGraphsGizmos(struct HF_Gizmos *Gizmos, struct HF_Shader *L
 	{
 		struct HF_Graph *Graph = (struct HF_Graph*)ListEntry;
 
-		HF_GraphDrawQuadBatch(Graph, Gizmos);
-
 		ListEntry = ListEntry->Flink;
+
+		HF_GraphDrawQuadBatch(Graph, Gizmos);		
 	}
 
 	HF_GizmosDrawQuadBatch(Gizmos);
@@ -446,9 +448,9 @@ static void HF_DrawAllGraphsFonts(struct HF_Font *Font, struct HF_Shader *Shader
 	{
 		struct HF_Graph *Graph = (struct HF_Graph*)ListEntry;
 
-		HF_GraphDrawFont(Graph, Font);
-
 		ListEntry = ListEntry->Flink;
+
+		HF_GraphDrawFont(Graph, Font);
 	}
 
 	HF_FontEndDraw(Font, Shader);
@@ -481,7 +483,17 @@ static void HF_ScrollCallback(GLFWwindow *Context, double X, double Y)
 
 static void HF_KeyCallback(GLFWwindow *Context, int Key, int ScanCode, int Action, int Mods)
 {
+	HF_ListEntry *ListEntry = m_GraphList.Flink;
+	while (ListEntry != &m_GraphList)
+	{
+		struct HF_Graph *Graph = (struct HF_Graph*)ListEntry;
 
+		ListEntry = ListEntry->Flink;
+
+		struct HF_TextEditorNode *TextEditor = HF_GraphGetTextEditor(Graph);
+
+		HF_TextEditorNodeKeyCallback(TextEditor, Key, ScanCode, Action, Mods);
+	}
 }
 
 static void HF_DropCallback(GLFWwindow *Context, int PathCount, const char **Paths)

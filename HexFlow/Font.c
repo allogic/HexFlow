@@ -223,9 +223,6 @@ void HF_FontBeginDraw(struct HF_Font *Font, struct HF_Shader *Shader, HF_Matrix4
 	glActiveTexture(GL_TEXTURE0);
 }
 
-#define HF_CHECK_EXTEND_X(VALUE) if (fabsf(VALUE) > Size[0]) Size[0] = fabsf(VALUE)
-#define HF_CHECK_EXTEND_Y(VALUE) if (fabsf(VALUE) > Size[1]) Size[1] = fabsf(VALUE)
-
 void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, char const *Text)
 {
 	float X = Position[0], Y = Position[1];
@@ -278,10 +275,8 @@ void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size,
 					float X1 = X + U1 * Font->WorldSize;
 					float Y1 = Y + V1 * Font->WorldSize;
 
-					HF_CHECK_EXTEND_X(X0);
-					HF_CHECK_EXTEND_Y(Y0);
-					HF_CHECK_EXTEND_X(X1);
-					HF_CHECK_EXTEND_Y(Y1);
+					if (fabsf(X1) > Size[0]) Size[0] = fabsf(X1);
+					if (fabsf(Y0) > Size[1]) Size[1] = fabsf(Y0);
 
 					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[0] = X0;
 					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[1] = Y0;
@@ -353,6 +348,154 @@ void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size,
 	Size[1] -= Position[1];
 }
 
+void HF_FontDrawTextClipped(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, char const *Text)
+{
+	float X = Position[0], Y = Position[1];
+
+	Y -= Font->Height / ((float)Font->EmSize * Font->WorldSize);
+
+	glBindVertexArray(Font->Vao);
+
+	int unsigned PrevGlyphIndex = 0;
+
+	char unsigned FastForwardTillEndOfLine = 0;
+	char unsigned FastForwardTillEndOfFile = 0;
+
+	for (char const *CharCode = Text; *CharCode != '\0'; CharCode++)
+	{
+		switch (*CharCode)
+		{
+			case '\r':
+			{
+				break;
+			}
+			case '\n':
+			{
+				X = Position[0];
+				Y -= Font->Height / ((float)Font->EmSize * Font->WorldSize);
+
+				FastForwardTillEndOfLine = 0;
+
+				if (FastForwardTillEndOfFile == 1)
+				{
+					goto HF_FontDrawTextClipped_Draw;
+				}
+
+				break;
+			}
+			default:
+			{
+				if (FastForwardTillEndOfLine == 0)
+				{
+					struct HF_Glyph *Glyph = &Font->Glyphs[*CharCode];
+
+					if ((PrevGlyphIndex != 0) && (Glyph->Index != 0))
+					{
+						FT_Vector Kerning = { 0 };
+
+						FT_CHECK(FT_Get_Kerning(Font->Face, PrevGlyphIndex, Glyph->Index, Font->KerningMode, &Kerning));
+
+						X += (float)Kerning.x / (Font->EmSize * Font->WorldSize);
+					}
+
+					if (Glyph->CurveCount)
+					{
+						float D = Font->EmSize * Font->Dilation;
+
+						float U0 = ((float)Glyph->BearingX - D) / Font->EmSize;
+						float V0 = ((float)Glyph->BearingY - (float)Glyph->Height - D) / Font->EmSize;
+						float U1 = ((float)Glyph->BearingX + (float)Glyph->Width + D) / Font->EmSize;
+						float V1 = ((float)Glyph->BearingY + D) / Font->EmSize;
+
+						float X0 = X + U0 * Font->WorldSize;
+						float Y0 = Y + V0 * Font->WorldSize;
+						float X1 = X + U1 * Font->WorldSize;
+						float Y1 = Y + V1 * Font->WorldSize;
+
+						if (X1 > (Position[0] + Size[0]))
+						{
+							X1 = (Position[0] + Size[0]);
+
+							FastForwardTillEndOfLine = 1;
+						}
+
+						if (Y0 < (Position[1] - Size[1]))
+						{
+							Y0 = (Position[1] - Size[1]);
+
+							FastForwardTillEndOfFile = 1;
+						}
+
+						Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[0] = X0;
+						Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[1] = Y0;
+						Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[2] = Position[2];
+						Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[0] = U0;
+						Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[1] = V0;
+						Font->VertexBuffer[Font->VertexBufferOffset + 0].BufferIndex = Glyph->BufferIndex;
+						Font->VertexBuffer[Font->VertexBufferOffset + 0].Color = 0xFFFFFFFF;
+
+						Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[0] = X1;
+						Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[1] = Y0;
+						Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[2] = Position[2];
+						Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[0] = U1;
+						Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[1] = V0;
+						Font->VertexBuffer[Font->VertexBufferOffset + 1].BufferIndex = Glyph->BufferIndex;
+						Font->VertexBuffer[Font->VertexBufferOffset + 1].Color = 0xFFFFFFFF;
+
+						Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[0] = X1;
+						Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[1] = Y1;
+						Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[2] = Position[2];
+						Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[0] = U1;
+						Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[1] = V1;
+						Font->VertexBuffer[Font->VertexBufferOffset + 2].BufferIndex = Glyph->BufferIndex;
+						Font->VertexBuffer[Font->VertexBufferOffset + 2].Color = 0xFFFFFFFF;
+
+						Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[0] = X0;
+						Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[1] = Y1;
+						Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[2] = Position[2];
+						Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[0] = U0;
+						Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[1] = V1;
+						Font->VertexBuffer[Font->VertexBufferOffset + 3].BufferIndex = Glyph->BufferIndex;
+						Font->VertexBuffer[Font->VertexBufferOffset + 3].Color = 0xFFFFFFFF;
+
+						Font->IndexBuffer[Font->IndexBufferOffset + 0] = Font->VertexBufferOffset + 0;
+						Font->IndexBuffer[Font->IndexBufferOffset + 1] = Font->VertexBufferOffset + 1;
+						Font->IndexBuffer[Font->IndexBufferOffset + 2] = Font->VertexBufferOffset + 2;
+
+						Font->IndexBuffer[Font->IndexBufferOffset + 3] = Font->VertexBufferOffset + 2;
+						Font->IndexBuffer[Font->IndexBufferOffset + 4] = Font->VertexBufferOffset + 3;
+						Font->IndexBuffer[Font->IndexBufferOffset + 5] = Font->VertexBufferOffset + 0;
+
+						Font->VertexBufferOffset += 4;
+						Font->IndexBufferOffset += 6;
+					}
+
+					X += (float)Glyph->Advance / (Font->EmSize * Font->WorldSize);
+
+					PrevGlyphIndex = Glyph->Index;
+				}
+
+				break;
+			}
+		}
+	}
+
+HF_FontDrawTextClipped_Draw:
+
+	glBindBuffer(GL_ARRAY_BUFFER, Font->Vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(struct HF_BufferVertex) * Font->VertexBufferOffset, Font->VertexBuffer, GL_STREAM_DRAW);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Font->Ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int unsigned) * Font->IndexBufferOffset, Font->IndexBuffer, GL_STREAM_DRAW);
+
+	glDrawElements(GL_TRIANGLES, Font->IndexBufferOffset, GL_UNSIGNED_INT, 0);
+
+	glBindVertexArray(0);
+
+	Font->VertexBufferOffset = 0;
+	Font->IndexBufferOffset = 0;
+}
+
 void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, char unsigned const *Buffer, long long unsigned BufferSize, int unsigned NumOfColumns, float Spacing)
 {
 	float X = Position[0], Y = Position[1];
@@ -404,10 +547,8 @@ void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, 
 				float X1 = X + U1 * Font->WorldSize;
 				float Y1 = Y + V1 * Font->WorldSize;
 
-				HF_CHECK_EXTEND_X(X0);
-				HF_CHECK_EXTEND_Y(Y0);
-				HF_CHECK_EXTEND_X(X1);
-				HF_CHECK_EXTEND_Y(Y1);
+				if (fabsf(X1) > Size[0]) Size[0] = fabsf(X1);
+				if (fabsf(Y0) > Size[1]) Size[1] = fabsf(Y0);
 
 				Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[0] = X0;
 				Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[1] = Y0;
@@ -478,8 +619,151 @@ void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, 
 	Size[1] -= Position[1];
 }
 
-#undef HF_CHECK_EXTEND_X
-#undef HF_CHECK_EXTEND_Y
+void HF_FontDrawHexClipped(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, char unsigned const *Buffer, long long unsigned BufferSize, int unsigned NumOfColumns, float Spacing)
+{
+	float X = Position[0], Y = Position[1];
+
+	Y -= Font->Height / ((float)Font->EmSize * Font->WorldSize);
+
+	glBindVertexArray(Font->Vao);
+
+	int unsigned PrevGlyphIndex = 0;
+
+	char unsigned FastForwardTillEndOfLine = 0;
+	char unsigned FastForwardTillEndOfFile = 0;
+
+	for (long long unsigned BufferIndex = 0; BufferIndex < BufferSize; BufferIndex++)
+	{
+		if ((BufferIndex != 0) && (BufferIndex % NumOfColumns) == 0)
+		{
+			X = Position[0];
+			Y -= Font->Height / ((float)Font->EmSize * Font->WorldSize);
+
+			FastForwardTillEndOfLine = 0;
+
+			if (FastForwardTillEndOfFile == 1)
+			{
+				goto HF_FontDrawHexClipped_Draw;
+			}
+		}
+
+		char HexRepresentation[3] = { 0 };
+
+		snprintf(HexRepresentation, sizeof(HexRepresentation), "%02X", Buffer[BufferIndex]);
+
+		for (char unsigned CharIndex = 0; CharIndex < 2; CharIndex++)
+		{
+			if (FastForwardTillEndOfLine == 0)
+			{
+				char unsigned CharCode = HexRepresentation[CharIndex];
+
+				struct HF_Glyph *Glyph = &Font->Glyphs[CharCode];
+
+				if ((PrevGlyphIndex != 0) && (Glyph->Index != 0))
+				{
+					FT_Vector Kerning = { 0 };
+
+					FT_CHECK(FT_Get_Kerning(Font->Face, PrevGlyphIndex, Glyph->Index, Font->KerningMode, &Kerning));
+
+					X += (float)Kerning.x / (Font->EmSize * Font->WorldSize);
+				}
+
+				if (Glyph->CurveCount)
+				{
+					float D = Font->EmSize * Font->Dilation;
+
+					float U0 = ((float)Glyph->BearingX - D) / Font->EmSize;
+					float V0 = ((float)Glyph->BearingY - (float)Glyph->Height - D) / Font->EmSize;
+					float U1 = ((float)Glyph->BearingX + (float)Glyph->Width + D) / Font->EmSize;
+					float V1 = ((float)Glyph->BearingY + D) / Font->EmSize;
+
+					float X0 = X + U0 * Font->WorldSize;
+					float Y0 = Y + V0 * Font->WorldSize;
+					float X1 = X + U1 * Font->WorldSize;
+					float Y1 = Y + V1 * Font->WorldSize;
+
+					if (X1 > (Position[0] + Size[0]))
+					{
+						X1 = (Position[0] + Size[0]);
+
+						FastForwardTillEndOfLine = 1;
+					}
+
+					if (Y0 < (Position[1] - Size[1]))
+					{
+						Y0 = (Position[1] - Size[1]);
+
+						FastForwardTillEndOfFile = 1;
+					}
+
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[0] = X0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[1] = Y0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].Position[2] = Position[2];
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[0] = U0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].TextureCoords[1] = V0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].BufferIndex = Glyph->BufferIndex;
+					Font->VertexBuffer[Font->VertexBufferOffset + 0].Color = 0xFFFFFFFF;
+
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[0] = X1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[1] = Y0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].Position[2] = Position[2];
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[0] = U1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].TextureCoords[1] = V0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].BufferIndex = Glyph->BufferIndex;
+					Font->VertexBuffer[Font->VertexBufferOffset + 1].Color = 0xFFFFFFFF;
+
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[0] = X1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[1] = Y1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].Position[2] = Position[2];
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[0] = U1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].TextureCoords[1] = V1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].BufferIndex = Glyph->BufferIndex;
+					Font->VertexBuffer[Font->VertexBufferOffset + 2].Color = 0xFFFFFFFF;
+
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[0] = X0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[1] = Y1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].Position[2] = Position[2];
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[0] = U0;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].TextureCoords[1] = V1;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].BufferIndex = Glyph->BufferIndex;
+					Font->VertexBuffer[Font->VertexBufferOffset + 3].Color = 0xFFFFFFFF;
+
+					Font->IndexBuffer[Font->IndexBufferOffset + 0] = Font->VertexBufferOffset + 0;
+					Font->IndexBuffer[Font->IndexBufferOffset + 1] = Font->VertexBufferOffset + 1;
+					Font->IndexBuffer[Font->IndexBufferOffset + 2] = Font->VertexBufferOffset + 2;
+
+					Font->IndexBuffer[Font->IndexBufferOffset + 3] = Font->VertexBufferOffset + 2;
+					Font->IndexBuffer[Font->IndexBufferOffset + 4] = Font->VertexBufferOffset + 3;
+					Font->IndexBuffer[Font->IndexBufferOffset + 5] = Font->VertexBufferOffset + 0;
+
+					Font->VertexBufferOffset += 4;
+					Font->IndexBufferOffset += 6;
+				}
+
+				X += (float)Glyph->Advance / (Font->EmSize * Font->WorldSize);
+
+				PrevGlyphIndex = Glyph->Index;
+			}
+		}
+
+		X += Spacing * Font->WorldSize;
+	}
+
+HF_FontDrawHexClipped_Draw:
+
+	glBindBuffer(GL_ARRAY_BUFFER, Font->Vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(struct HF_BufferVertex) * Font->VertexBufferOffset, Font->VertexBuffer, GL_STREAM_DRAW);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Font->Ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int unsigned) * Font->IndexBufferOffset, Font->IndexBuffer, GL_STREAM_DRAW);
+
+	glDrawElements(GL_TRIANGLES, Font->IndexBufferOffset, GL_UNSIGNED_INT, 0);
+
+	glBindVertexArray(0);
+
+	Font->VertexBufferOffset = 0;
+	Font->IndexBufferOffset = 0;
+}
 
 void HF_FontEndDraw(struct HF_Font *Font, struct HF_Shader *Shader)
 {

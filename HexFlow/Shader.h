@@ -1,7 +1,7 @@
 #ifndef HF_SHADER_H
 #define HF_SHADER_H
 
-typedef float HF_Matrix4[4][4];
+#include <HexFlow/Math/MathTypes.h>
 
 struct HF_Shader* HF_ShaderAlloc(char const *VertexSource, char const *FragmentSource);
 void HF_ShaderFree(struct HF_Shader *Shader);

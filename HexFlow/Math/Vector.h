@@ -1,9 +1,7 @@
 #ifndef HF_MATH_VECTOR_H
 #define HF_MATH_VECTOR_H
 
-typedef float HF_Vector2[2];
-typedef float HF_Vector3[3];
-typedef float HF_Vector4[4];
+#include <HexFlow/Math/MathTypes.h>
 
 #define HF_VECTOR2_ZERO { 0.0F, 0.0F }
 #define HF_VECTOR3_ZERO { 0.0F, 0.0F, 0.0F }

@@ -1,10 +1,7 @@
 #ifndef HF_GIZMOS_H
 #define HF_GIZMOS_H
 
-typedef float HF_Vector2[2];
-typedef float HF_Vector3[3];
-
-typedef float HF_Matrix4[4][4];
+#include <HexFlow/Math/MathTypes.h>
 
 struct HF_Gizmos* HF_GizmosAlloc();
 void HF_GizmosFree(struct HF_Gizmos *Gizmos);

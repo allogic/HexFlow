@@ -9,11 +9,16 @@
 
 #include <HexFlow/NodeGraph/Node.h>
 
+#include <HexFlow/NodeGraph/Nodes/RootNode.h>
+#include <HexFlow/NodeGraph/Nodes/TextEditorNode.h>
+
 #define HF_NODE_TITLE_SIZE 64
 
 struct HF_Node
 {
 	HF_ListEntry ListEntry;
+
+	HF_NodeType NodeType;
 
 	char Title[HF_NODE_TITLE_SIZE];
 
@@ -38,11 +43,15 @@ struct HF_Node
 
 	long long unsigned BufferOffset;
 	long long unsigned BufferSize;
+
+	void* VirtualNode;
 };
 
-struct HF_Node* HF_NodeAlloc(char const *Title, HF_Vector3 Position, HF_Vector2 Size, char unsigned *Buffer, long long unsigned BufferOffset, long long unsigned BufferSize)
+struct HF_Node* HF_NodeAlloc(HF_NodeType NodeType, char const *Title, HF_Vector3 Position, HF_Vector2 Size)
 {
 	struct HF_Node *Node = (struct HF_Node*)HF_MemoryAlloc(sizeof(struct HF_Node), 0);
+
+	Node->NodeType = NodeType;
 
 	strcpy(Node->Title, Title);
 
@@ -60,106 +69,115 @@ struct HF_Node* HF_NodeAlloc(char const *Title, HF_Vector3 Position, HF_Vector2 
 	Node->PaddingBottom = 0.5F;
 
 	Node->WindowBackgroundColor = 0x222222FF;
-	Node->WindowBorderColor = 0x555555FF;
+	Node->WindowBorderColor = 0x383838FF;
 	Node->ContentBorderColor = 0x555555FF;
 
-	Node->Buffer = Buffer;
+	Node->Buffer = 0;
+	Node->BufferOffset = 0;
+	Node->BufferSize = 0;
 
-	Node->BufferOffset = BufferOffset;
-	Node->BufferSize = BufferSize;
+	switch (Node->NodeType)
+	{
+		case HF_NODE_TYPE_HEX_VIEW: Node->VirtualNode = HF_RootNodeAlloc(Node); break;
+		case HF_NODE_TYPE_TEXT_EDITOR: Node->VirtualNode = HF_TextEditorNodeAlloc(Node); break;
+	}
 
 	return Node;
 }
 
 void HF_NodeFree(struct HF_Node *Node)
 {
+	switch (Node->NodeType)
+	{
+		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeFree(Node->VirtualNode); break;
+		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeFree(Node->VirtualNode); break;
+	}
+
 	HF_MemoryFree(Node);
+}
+
+HF_NodeType HF_NodeGetType(struct HF_Node *Node)
+{
+	return Node->NodeType;
+}
+
+void HF_NodeGetPosition(struct HF_Node *Node, HF_Vector3 Position)
+{
+	Position[0] = Node->Position[0];
+	Position[1] = Node->Position[1];
+	Position[2] = Node->Position[2];
+}
+
+void HF_NodeGetSize(struct HF_Node *Node, HF_Vector2 Size)
+{
+	Size[0] = Node->Size[0];
+	Size[1] = Node->Size[1];
+}
+
+void HF_NodeGetContentPosition(struct HF_Node *Node, HF_Vector3 Position)
+{
+	Position[0] = Node->Position[0] + Node->MarginLeft + Node->PaddingLeft;
+	Position[1] = Node->Position[1] - Node->MarginTop - Node->PaddingTop;
+	Position[2] = Node->Position[2];
+}
+
+void HF_NodeGetContentSize(struct HF_Node *Node, HF_Vector2 Size)
+{
+	Size[0] = Node->Size[0] - Node->MarginLeft - Node->PaddingLeft - Node->MarginRight - Node->PaddingRight;
+	Size[1] = Node->Size[1] - Node->MarginTop - Node->PaddingTop - Node->MarginBottom - Node->PaddingBottom;
+}
+
+char unsigned* HF_NodeGetBuffer(struct HF_Node *Node)
+{
+	return Node->Buffer;
+}
+
+long long unsigned HF_NodeGetBufferOffset(struct HF_Node *Node)
+{
+	return Node->BufferOffset;
+}
+
+long long unsigned HF_NodeGetBufferSize(struct HF_Node *Node)
+{
+	return Node->BufferSize;
+}
+
+void* HF_NodeGetVirtualNode(struct HF_Node *Node)
+{
+	return Node->VirtualNode;
+}
+
+void HF_NodeSetBuffer(struct HF_Node *Node, char unsigned *Buffer)
+{
+	Node->Buffer = Buffer;
+}
+
+void HF_NodeSetBufferOffset(struct HF_Node *Node, long long unsigned BufferOffset)
+{
+	Node->BufferOffset = BufferOffset;
+}
+
+void HF_NodeSetBufferSize(struct HF_Node *Node, long long unsigned BufferSize)
+{
+	Node->BufferSize = BufferSize;
 }
 
 void HF_NodeUpdate(struct HF_Node *Node)
 {
-
-}
-
-void HF_NodeDrawLines(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
-{
-
-}
-
-void HF_NodeDrawQuads(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
-{
-
-}
-
-void HF_NodeDrawLineBatch(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
-{
-	HF_Vector3 WindowBorderPosition =
+	switch (Node->NodeType)
 	{
-		Node->Position[0],
-		Node->Position[1] - Node->Size[1] + (Node->MarginTop + Node->PaddingTop) - (Node->MarginBottom + Node->PaddingBottom),
-		Node->Position[2] + 0.05F,
-	};
-
-	HF_Vector2 WindowBorderSize =
-	{
-		Node->Size[0] + (Node->MarginLeft + Node->PaddingLeft) + (Node->MarginRight + Node->PaddingRight),
-		Node->Size[1] - (Node->MarginTop + Node->PaddingTop) + (Node->MarginBottom + Node->PaddingBottom),
-	};
-
-	HF_GizmosDrawBatchLineRect(Gizmos, WindowBorderPosition, WindowBorderSize, Node->WindowBorderColor);
-
-	HF_Vector3 ContentBorderPosition =
-	{
-		Node->Position[0] + Node->MarginLeft,
-		Node->Position[1] - Node->Size[1] + Node->MarginTop + Node->PaddingTop - Node->PaddingBottom,
-		Node->Position[2] + 0.05F,
-	};
-
-	HF_Vector2 ContentBorderSize =
-	{
-		Node->Size[0] + Node->PaddingLeft + Node->PaddingRight,
-		Node->Size[1] - (Node->MarginTop * 2.0F) - Node->PaddingTop + Node->PaddingBottom,
-	};
-
-	HF_GizmosDrawBatchLineRect(Gizmos, ContentBorderPosition, ContentBorderSize, Node->ContentBorderColor);
-}
-
-void HF_NodeDrawQuadBatch(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
-{
-	HF_Vector3 BackgroundPosition =
-	{
-		Node->Position[0],
-		Node->Position[1] - Node->Size[1] + (Node->MarginTop + Node->PaddingTop) - (Node->MarginBottom + Node->PaddingBottom),
-		Node->Position[2] + 0.1F,
-	};
-
-	HF_Vector2 BackgroundSize =
-	{
-		Node->Size[0] + (Node->MarginLeft + Node->PaddingLeft) + (Node->MarginRight + Node->PaddingRight),
-		Node->Size[1] - (Node->MarginTop + Node->PaddingTop) + (Node->MarginBottom + Node->PaddingBottom),
-	};
-
-	HF_GizmosDrawBatchQuad(Gizmos, BackgroundPosition, BackgroundSize, Node->WindowBackgroundColor);
+		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeUpdate(Node->VirtualNode); break;
+		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeUpdate(Node->VirtualNode); break;
+	}
 }
 
 void HF_NodeDrawFont(struct HF_Node *Node, struct HF_Font *Font)
 {
-	HF_Vector3 ContentPosition =
+	HF_Vector2 TitleSize =
 	{
-		Node->Position[0] + (Node->MarginLeft + Node->PaddingLeft),
-		Node->Position[1] - (Node->MarginTop + Node->PaddingTop),
-		Node->Position[2],
+		Node->Size[0],
+		Node->Size[1],
 	};
-
-	HF_Vector2 ContentSize =
-	{
-		0.0F,
-		0.0F,
-	};
-
-	HF_FontDrawHex(Font, ContentPosition, ContentSize, Node->Buffer + Node->BufferOffset, Node->BufferSize, 16, 0.4F);
-
-	HF_Vector2Set(ContentSize, Node->Size);
 
 	HF_Vector3 TitlePosition =
 	{
@@ -168,11 +186,92 @@ void HF_NodeDrawFont(struct HF_Node *Node, struct HF_Font *Font)
 		Node->Position[2],
 	};
 
-	HF_Vector2 TitleSize =
+	HF_FontDrawTextClipped(Font, TitlePosition, TitleSize, Node->Title);
+
+	switch (Node->NodeType)
 	{
-		0.0F,
-		0.0F,
+		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeDrawFont(Node->VirtualNode, Font); break;
+		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeDrawFont(Node->VirtualNode, Font); break;
+	}
+}
+
+void HF_NodeDrawLines(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
+{
+	switch (Node->NodeType)
+	{
+		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeDrawLines(Node->VirtualNode, Gizmos); break;
+		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeDrawLines(Node->VirtualNode, Gizmos); break;
+	}
+}
+
+void HF_NodeDrawQuads(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
+{
+	switch (Node->NodeType)
+	{
+		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeDrawQuads(Node->VirtualNode, Gizmos); break;
+		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeDrawQuads(Node->VirtualNode, Gizmos); break;
+	}
+}
+
+void HF_NodeDrawLineBatch(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
+{
+	HF_Vector2 WindowBorderSize =
+	{
+		Node->Size[0],
+		Node->Size[1],
 	};
 
-	HF_FontDrawText(Font, TitlePosition, TitleSize, Node->Title);
+	HF_Vector3 WindowBorderPosition =
+	{
+		Node->Position[0],
+		Node->Position[1] - WindowBorderSize[1],
+		Node->Position[2] + 0.05F,
+	};
+
+	HF_GizmosDrawBatchLineRect(Gizmos, WindowBorderPosition, WindowBorderSize, Node->WindowBorderColor);
+
+	HF_Vector2 ContentBorderSize =
+	{
+		Node->Size[0] - Node->MarginLeft - Node->MarginRight,
+		Node->Size[1] - Node->MarginTop - Node->MarginBottom,
+	};
+
+	HF_Vector3 ContentBorderPosition =
+	{
+		Node->Position[0] + Node->MarginLeft,
+		Node->Position[1] - ContentBorderSize[1] - Node->MarginTop,
+		Node->Position[2] + 0.05F,
+	};
+
+	HF_GizmosDrawBatchLineRect(Gizmos, ContentBorderPosition, ContentBorderSize, Node->ContentBorderColor);
+
+	switch (Node->NodeType)
+	{
+		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeDrawLineBatch(Node->VirtualNode, Gizmos); break;
+		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeDrawLineBatch(Node->VirtualNode, Gizmos); break;
+	}
+}
+
+void HF_NodeDrawQuadBatch(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
+{
+	HF_Vector2 BackgroundSize =
+	{
+		Node->Size[0],
+		Node->Size[1],
+	};
+
+	HF_Vector3 BackgroundPosition =
+	{
+		Node->Position[0],
+		Node->Position[1] - BackgroundSize[1],
+		Node->Position[2] + 0.1F,
+	};
+
+	HF_GizmosDrawBatchQuad(Gizmos, BackgroundPosition, BackgroundSize, Node->WindowBackgroundColor);
+
+	switch (Node->NodeType)
+	{
+		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeDrawQuadBatch(Node->VirtualNode, Gizmos); break;
+		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeDrawQuadBatch(Node->VirtualNode, Gizmos); break;
+	}
 }

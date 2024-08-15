@@ -1,18 +1,36 @@
-#ifndef HF_NODEGRAPH_NODE_H
-#define HF_NODEGRAPH_NODE_H
+#ifndef HF_NODE_GRAPH_NODE_H
+#define HF_NODE_GRAPH_NODE_H
 
-typedef float HF_Vector2[2];
-typedef float HF_Vector3[3];
+#include <HexFlow/Math/MathTypes.h>
 
-struct HF_Node* HF_NodeAlloc(char const *Title, HF_Vector3 Position, HF_Vector2 Size, char unsigned *Buffer, long long unsigned BufferOffset, long long unsigned BufferSize);
+#include <HexFlow/NodeGraph/NodeTypes.h>
+
+struct HF_Node* HF_NodeAlloc(HF_NodeType NodeType, char const *Title, HF_Vector3 Position, HF_Vector2 Size);
 void HF_NodeFree(struct HF_Node *Node);
+
+HF_NodeType HF_NodeGetType(struct HF_Node *Node);
+
+void HF_NodeGetPosition(struct HF_Node *Node, HF_Vector3 Position);
+void HF_NodeGetSize(struct HF_Node *Node, HF_Vector2 Size);
+
+void HF_NodeGetContentPosition(struct HF_Node *Node, HF_Vector3 Position);
+void HF_NodeGetContentSize(struct HF_Node *Node, HF_Vector2 Size);
+
+char unsigned* HF_NodeGetBuffer(struct HF_Node *Node);
+long long unsigned HF_NodeGetBufferOffset(struct HF_Node *Node);
+long long unsigned HF_NodeGetBufferSize(struct HF_Node *Node);
+void* HF_NodeGetVirtualNode(struct HF_Node *Node);
+
+void HF_NodeSetBuffer(struct HF_Node *Node, char unsigned *Buffer);
+void HF_NodeSetBufferOffset(struct HF_Node *Node, long long unsigned BufferOffset);
+void HF_NodeSetBufferSize(struct HF_Node *Node, long long unsigned BufferSize);
 
 void HF_NodeUpdate(struct HF_Node *Node);
 
+void HF_NodeDrawFont(struct HF_Node *Node, struct HF_Font *Font);
 void HF_NodeDrawLines(struct HF_Node *Node, struct HF_Gizmos *Gizmos);
 void HF_NodeDrawQuads(struct HF_Node *Node, struct HF_Gizmos *Gizmos);
 void HF_NodeDrawLineBatch(struct HF_Node *Node, struct HF_Gizmos *Gizmos);
 void HF_NodeDrawQuadBatch(struct HF_Node *Node, struct HF_Gizmos *Gizmos);
-void HF_NodeDrawFont(struct HF_Node *Node, struct HF_Font *Font);
 
-#endif // HF_NODEGRAPH_NODE_H
+#endif // HF_NODE_GRAPH_NODE_H

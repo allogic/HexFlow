@@ -10,13 +10,23 @@ void* HF_MemoryAlloc(long long unsigned Size, void const *Reference)
 
 #ifdef HF_DEBUG
 
-	long long unsigned RealSize = sizeof(long long unsigned) + Size;
-	long long unsigned *Block = (long long unsigned*)calloc(1, RealSize);
+	long long unsigned *NewBlock = (long long unsigned*)calloc(1, sizeof(long long unsigned) + Size);
 
-	g_Allocated += RealSize;
+	g_Allocated += sizeof(long long unsigned) + Size;
 
-	*Block = RealSize;
-	Block += 1;
+	*NewBlock = sizeof(long long unsigned) + Size;
+	NewBlock += 1;
+
+	if (Reference)
+	{
+		memcpy(NewBlock, Reference, Size);
+	}
+
+	return NewBlock;
+
+#else
+
+	void* Block = calloc(1, Size);
 
 	if (Reference)
 	{
@@ -25,9 +35,33 @@ void* HF_MemoryAlloc(long long unsigned Size, void const *Reference)
 
 	return Block;
 
+#endif // HF_DEBUG
+
+}
+
+void* HF_MemoryRealloc(void *Block, long long unsigned Size)
+{
+
+#ifdef HF_DEBUG
+
+	long long unsigned *PrevBlock = (long long unsigned*)Block;
+
+	PrevBlock -= 1;
+
+	g_Allocated -= *PrevBlock;
+
+	long long unsigned *NewBlock = (long long unsigned*)realloc(PrevBlock, sizeof(long long unsigned) + Size);
+
+	g_Allocated += sizeof(long long unsigned) + Size;
+
+	*NewBlock = sizeof(long long unsigned) + Size;
+	NewBlock += 1;
+
+	return NewBlock;
+
 #else
 
-	return calloc(1, Size);
+	return realloc(Block, Size);
 
 #endif // HF_DEBUG
 
@@ -38,15 +72,17 @@ void HF_MemoryFree(void *Block)
 
 #ifdef HF_DEBUG
 
-	long long unsigned* RealBlock = ((long long unsigned*)Block) - 1;
+	long long unsigned* PrevBlock = (long long unsigned*)Block;
 
-	g_Allocated -= *RealBlock;
+	PrevBlock -= 1;
 
-	free(RealBlock);
+	g_Allocated -= *PrevBlock;
+
+	free(PrevBlock);
 
 #else
 
-	free(RealBlock);
+	free(Block);
 
 #endif // HF_DEBUG
 

@@ -1,8 +1,7 @@
 #ifndef HF_MATH_MATRIX_H
 #define HF_MATH_MATRIX_H
 
-typedef float HF_Vector3[3];
-typedef float HF_Matrix4[4][4];
+#include <HexFlow/Math/MathTypes.h>
 
 #define HF_MATRIX4_ZERO { { 0.0F, 0.0F, 0.0F, 0.0F }, \
                           { 0.0F, 0.0F, 0.0F, 0.0F }, \
