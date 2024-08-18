@@ -4,6 +4,9 @@
 struct HF_RootNode* HF_RootNodeAlloc(struct HF_Node *Node);
 void HF_RootNodeFree(struct HF_RootNode *RootNode);
 
+void HF_RootNodeSetBuffer(struct HF_RootNode *RootNode, char unsigned *Buffer);
+void HF_RootNodeSetBufferSize(struct HF_RootNode *RootNode, long long unsigned BufferSize);
+
 void HF_RootNodeUpdate(struct HF_RootNode *RootNode);
 
 void HF_RootNodeDrawFont(struct HF_RootNode *RootNode, struct HF_Font *Font);

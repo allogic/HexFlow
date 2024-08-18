@@ -8,15 +8,14 @@
 #include <HexFlow/NodeGraph/Node.h>
 #include <HexFlow/NodeGraph/NodeTypes.h>
 
+#include <HexFlow/NodeGraph/Nodes/RootNode.h>
+#include <HexFlow/NodeGraph/Nodes/TextEditorNode.h>
+
 struct HF_Graph
 {
 	HF_ListEntry ListEntry;
 	HF_ListEntry NodeList;
 	HF_ListEntry OperationList;
-
-	char unsigned* Buffer;
-
-	long long unsigned BufferSize;
 };
 
 struct HF_Graph* HF_GraphAlloc(char const *FileName)
@@ -26,17 +25,21 @@ struct HF_Graph* HF_GraphAlloc(char const *FileName)
 	HF_ListInitHead(&Graph->NodeList);
 	HF_ListInitHead(&Graph->OperationList);
 
-	HF_FileSystemReadText(FileName, &Graph->Buffer, &Graph->BufferSize);
-
 	{
 		HF_Vector3 Position = { 0.0F, 0.0F, 0.0F };
 		HF_Vector2 Size = { 40.0F, 40.0F };
 
-		struct HF_Node *Node = HF_GraphAddNode(Graph, HF_NODE_TYPE_HEX_VIEW, Position, Size, "Memory Dump");
+		struct HF_Node *Node = HF_GraphAddNode(Graph, HF_NODE_TYPE_ROOT, Position, Size, "Root");
+		struct HF_RootNode* RootNode = (struct HF_RootNode*)HF_NodeGetVirtualNode(Node);
 
-		HF_NodeSetBuffer(Node, Graph->Buffer);
-		HF_NodeSetBufferOffset(Node, 0);
-		HF_NodeSetBufferSize(Node, 1024);
+		char unsigned *Buffer;
+
+		long long unsigned BufferSize;
+
+		HF_FileSystemReadText(FileName, &Buffer, &BufferSize);
+
+		HF_RootNodeSetBuffer(RootNode, Buffer);
+		HF_RootNodeSetBufferSize(RootNode, BufferSize);
 	}
 
 	{
@@ -44,10 +47,7 @@ struct HF_Graph* HF_GraphAlloc(char const *FileName)
 		HF_Vector2 Size = { 60.0F, 30.0F };
 
 		struct HF_Node *Node = HF_GraphAddNode(Graph, HF_NODE_TYPE_TEXT_EDITOR, Position, Size, "Text Editor");
-
-		HF_NodeSetBuffer(Node, 0);
-		HF_NodeSetBufferOffset(Node, 0);
-		HF_NodeSetBufferSize(Node, 0);
+		struct HF_TextEditorNode* TextEditorNode = (struct HF_TextEditorNode*)HF_NodeGetVirtualNode(Node);
 	}
 
 	return Graph;
@@ -65,7 +65,6 @@ void HF_GraphFree(struct HF_Graph *Graph)
 		HF_NodeFree(Node);
 	}
 
-	HF_MemoryFree(Graph->Buffer);
 	HF_MemoryFree(Graph);
 }
 
@@ -82,7 +81,7 @@ struct HF_TextEditorNode* HF_GraphGetTextEditor(struct HF_Graph *Graph)
 
 		if (NodeType == HF_NODE_TYPE_TEXT_EDITOR)
 		{
-			return (struct HF_TextEditorNode*)Node;
+			return (struct HF_TextEditorNode*)HF_NodeGetVirtualNode(Node);
 		}
 	}
 

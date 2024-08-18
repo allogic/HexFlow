@@ -59,7 +59,12 @@ void HF_VectorPop(struct HF_Vector *Vector, void *Item)
 	Vector->BufferIndex -= 1;
 	Vector->BufferOffset -= Vector->ValueSize;
 
-	memcpy(Item, Vector->Buffer + Vector->BufferOffset, Vector->ValueSize);
+	if (Item)
+	{
+		memcpy(Item, Vector->Buffer + Vector->BufferOffset, Vector->ValueSize);
+	}
+
+	memset(Vector->Buffer + Vector->BufferOffset, 0, Vector->ValueSize);
 }
 
 void HF_VectorResize(struct HF_Vector *Vector, long long unsigned Count)
@@ -91,9 +96,9 @@ void* HF_VectorAt(struct HF_Vector *Vector, long long unsigned Index)
 	return Vector->Buffer + (Index * Vector->ValueSize);
 }
 
-char unsigned* HF_VectorBuffer(struct HF_Vector *Vector)
+void* HF_VectorBuffer(struct HF_Vector *Vector)
 {
-	return Vector->Buffer;
+	return (void*)Vector->Buffer;
 }
 
 char unsigned HF_VectorEmpty(struct HF_Vector *Vector)

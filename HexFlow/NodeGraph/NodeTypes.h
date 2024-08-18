@@ -3,7 +3,7 @@
 
 typedef enum
 {
-	HF_NODE_TYPE_HEX_VIEW,
+	HF_NODE_TYPE_ROOT,
 	HF_NODE_TYPE_TEXT_EDITOR,
 } HF_NodeType;
 

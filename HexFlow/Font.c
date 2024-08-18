@@ -200,6 +200,11 @@ void HF_FontFree(struct HF_Font *Font)
 	HF_MemoryFree(Font);
 }
 
+float HF_FontGetHeight(struct HF_Font *Font)
+{
+	return Font->Height / ((float)Font->EmSize * Font->WorldSize);
+}
+
 void HF_FontBeginDraw(struct HF_Font *Font, struct HF_Shader *Shader, HF_Matrix4 Projection, HF_Matrix4 View, HF_Matrix4 Model)
 {
 	HF_ShaderBind(Shader);
@@ -233,7 +238,7 @@ void HF_FontDrawText(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size,
 
 	int unsigned PrevGlyphIndex = 0;
 
-	for (char const *CharCode = Text; *CharCode != '\0'; CharCode++)
+	for (char const *CharCode = Text; *CharCode != 0; CharCode++)
 	{
 		switch (*CharCode)
 		{
@@ -361,7 +366,7 @@ void HF_FontDrawTextClipped(struct HF_Font *Font, HF_Vector3 Position, HF_Vector
 	char unsigned FastForwardTillEndOfLine = 0;
 	char unsigned FastForwardTillEndOfFile = 0;
 
-	for (char const *CharCode = Text; *CharCode != '\0'; CharCode++)
+	for (char const *CharCode = Text; *CharCode != 0; CharCode++)
 	{
 		switch (*CharCode)
 		{
@@ -514,7 +519,7 @@ void HF_FontDrawHex(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2 Size, 
 			Y -= Font->Height / ((float)Font->EmSize * Font->WorldSize);
 		}
 
-		char HexRepresentation[3] = { 0 };
+		static char HexRepresentation[3] = { 0 };
 
 		snprintf(HexRepresentation, sizeof(HexRepresentation), "%02X", Buffer[BufferIndex]);
 
@@ -647,7 +652,7 @@ void HF_FontDrawHexClipped(struct HF_Font *Font, HF_Vector3 Position, HF_Vector2
 			}
 		}
 
-		char HexRepresentation[3] = { 0 };
+		static char HexRepresentation[3] = { 0 };
 
 		snprintf(HexRepresentation, sizeof(HexRepresentation), "%02X", Buffer[BufferIndex]);
 

@@ -7,14 +7,13 @@ long long unsigned g_Allocated = 0;
 
 void* HF_MemoryAlloc(long long unsigned Size, void const *Reference)
 {
+	long long unsigned NewSize = sizeof(long long unsigned) + Size;
 
-#ifdef HF_DEBUG
+	long long unsigned *NewBlock = (long long unsigned*)calloc(1, NewSize);
 
-	long long unsigned *NewBlock = (long long unsigned*)calloc(1, sizeof(long long unsigned) + Size);
+	g_Allocated += NewSize;
 
-	g_Allocated += sizeof(long long unsigned) + Size;
-
-	*NewBlock = sizeof(long long unsigned) + Size;
+	*NewBlock = NewSize;
 	NewBlock += 1;
 
 	if (Reference)
@@ -23,67 +22,43 @@ void* HF_MemoryAlloc(long long unsigned Size, void const *Reference)
 	}
 
 	return NewBlock;
-
-#else
-
-	void* Block = calloc(1, Size);
-
-	if (Reference)
-	{
-		memcpy(Block, Reference, Size);
-	}
-
-	return Block;
-
-#endif // HF_DEBUG
-
 }
 
 void* HF_MemoryRealloc(void *Block, long long unsigned Size)
 {
-
-#ifdef HF_DEBUG
-
 	long long unsigned *PrevBlock = (long long unsigned*)Block;
 
 	PrevBlock -= 1;
 
-	g_Allocated -= *PrevBlock;
+	long long unsigned PrevSize = *PrevBlock;
+	long long unsigned NewSize = sizeof(long long unsigned) + Size;
 
-	long long unsigned *NewBlock = (long long unsigned*)realloc(PrevBlock, sizeof(long long unsigned) + Size);
+	g_Allocated -= PrevSize;
 
-	g_Allocated += sizeof(long long unsigned) + Size;
+	long long unsigned *NewBlock = (long long unsigned*)realloc(PrevBlock, NewSize);
 
-	*NewBlock = sizeof(long long unsigned) + Size;
+	if (NewSize > PrevSize)
+	{
+		memset(((char unsigned*)NewBlock) + PrevSize, 0, NewSize - PrevSize);
+	}
+
+	g_Allocated += NewSize;
+
+	*NewBlock = NewSize;
 	NewBlock += 1;
 
 	return NewBlock;
-
-#else
-
-	return realloc(Block, Size);
-
-#endif // HF_DEBUG
-
 }
 
 void HF_MemoryFree(void *Block)
 {
-
-#ifdef HF_DEBUG
-
 	long long unsigned* PrevBlock = (long long unsigned*)Block;
 
 	PrevBlock -= 1;
 
-	g_Allocated -= *PrevBlock;
+	long long unsigned PrevSize = *PrevBlock;
+
+	g_Allocated -= PrevSize;
 
 	free(PrevBlock);
-
-#else
-
-	free(Block);
-
-#endif // HF_DEBUG
-
 }

@@ -11,7 +11,7 @@ void HF_VectorResize(struct HF_Vector *Vector, long long unsigned Count);
 void HF_VectorClear(struct HF_Vector *Vector);
 
 void* HF_VectorAt(struct HF_Vector *Vector, long long unsigned Index);
-char unsigned* HF_VectorBuffer(struct HF_Vector *Vector);
+void* HF_VectorBuffer(struct HF_Vector *Vector);
 
 char unsigned HF_VectorEmpty(struct HF_Vector *Vector);
 long long unsigned HF_VectorCount(struct HF_Vector *Vector);

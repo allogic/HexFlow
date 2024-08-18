@@ -9,6 +9,10 @@
 struct HF_RootNode
 {
 	struct HF_Node *Node;
+
+	char unsigned *Buffer;
+
+	long long unsigned BufferSize;
 };
 
 struct HF_RootNode* HF_RootNodeAlloc(struct HF_Node *Node)
@@ -22,7 +26,18 @@ struct HF_RootNode* HF_RootNodeAlloc(struct HF_Node *Node)
 
 void HF_RootNodeFree(struct HF_RootNode *RootNode)
 {
+	HF_MemoryFree(RootNode->Buffer);
 	HF_MemoryFree(RootNode);
+}
+
+void HF_RootNodeSetBuffer(struct HF_RootNode *RootNode, char unsigned *Buffer)
+{
+	RootNode->Buffer = Buffer;
+}
+
+void HF_RootNodeSetBufferSize(struct HF_RootNode *RootNode, long long unsigned BufferSize)
+{
+	RootNode->BufferSize = BufferSize;
 }
 
 void HF_RootNodeUpdate(struct HF_RootNode *RootNode)
@@ -40,12 +55,7 @@ void HF_RootNodeDrawFont(struct HF_RootNode *RootNode, struct HF_Font *Font)
 
 	HF_NodeGetContentPosition(RootNode->Node, ContentPosition);
 
-	char unsigned *Buffer = HF_NodeGetBuffer(RootNode->Node);
-
-	long long unsigned BufferOffset = HF_NodeGetBufferOffset(RootNode->Node);
-	long long unsigned BufferSize = HF_NodeGetBufferSize(RootNode->Node);
-
-	HF_FontDrawHexClipped(Font, ContentPosition, ContentSize, Buffer + BufferOffset, BufferSize, 16, 0.4F);
+	HF_FontDrawHexClipped(Font, ContentPosition, ContentSize, RootNode->Buffer, RootNode->BufferSize, 16, 0.4F);
 }
 
 void HF_RootNodeDrawLines(struct HF_RootNode *RootNode, struct HF_Gizmos *Gizmos)

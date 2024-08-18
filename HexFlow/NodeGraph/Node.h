@@ -16,14 +16,7 @@ void HF_NodeGetSize(struct HF_Node *Node, HF_Vector2 Size);
 void HF_NodeGetContentPosition(struct HF_Node *Node, HF_Vector3 Position);
 void HF_NodeGetContentSize(struct HF_Node *Node, HF_Vector2 Size);
 
-char unsigned* HF_NodeGetBuffer(struct HF_Node *Node);
-long long unsigned HF_NodeGetBufferOffset(struct HF_Node *Node);
-long long unsigned HF_NodeGetBufferSize(struct HF_Node *Node);
 void* HF_NodeGetVirtualNode(struct HF_Node *Node);
-
-void HF_NodeSetBuffer(struct HF_Node *Node, char unsigned *Buffer);
-void HF_NodeSetBufferOffset(struct HF_Node *Node, long long unsigned BufferOffset);
-void HF_NodeSetBufferSize(struct HF_Node *Node, long long unsigned BufferSize);
 
 void HF_NodeUpdate(struct HF_Node *Node);
 

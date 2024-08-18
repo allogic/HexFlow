@@ -39,11 +39,6 @@ struct HF_Node
 	int unsigned WindowBorderColor;
 	int unsigned ContentBorderColor;
 
-	char unsigned *Buffer;
-
-	long long unsigned BufferOffset;
-	long long unsigned BufferSize;
-
 	void* VirtualNode;
 };
 
@@ -72,13 +67,9 @@ struct HF_Node* HF_NodeAlloc(HF_NodeType NodeType, char const *Title, HF_Vector3
 	Node->WindowBorderColor = 0x383838FF;
 	Node->ContentBorderColor = 0x555555FF;
 
-	Node->Buffer = 0;
-	Node->BufferOffset = 0;
-	Node->BufferSize = 0;
-
 	switch (Node->NodeType)
 	{
-		case HF_NODE_TYPE_HEX_VIEW: Node->VirtualNode = HF_RootNodeAlloc(Node); break;
+		case HF_NODE_TYPE_ROOT: Node->VirtualNode = HF_RootNodeAlloc(Node); break;
 		case HF_NODE_TYPE_TEXT_EDITOR: Node->VirtualNode = HF_TextEditorNodeAlloc(Node); break;
 	}
 
@@ -89,7 +80,7 @@ void HF_NodeFree(struct HF_Node *Node)
 {
 	switch (Node->NodeType)
 	{
-		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeFree(Node->VirtualNode); break;
+		case HF_NODE_TYPE_ROOT: HF_RootNodeFree(Node->VirtualNode); break;
 		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeFree(Node->VirtualNode); break;
 	}
 
@@ -127,46 +118,16 @@ void HF_NodeGetContentSize(struct HF_Node *Node, HF_Vector2 Size)
 	Size[1] = Node->Size[1] - Node->MarginTop - Node->PaddingTop - Node->MarginBottom - Node->PaddingBottom;
 }
 
-char unsigned* HF_NodeGetBuffer(struct HF_Node *Node)
-{
-	return Node->Buffer;
-}
-
-long long unsigned HF_NodeGetBufferOffset(struct HF_Node *Node)
-{
-	return Node->BufferOffset;
-}
-
-long long unsigned HF_NodeGetBufferSize(struct HF_Node *Node)
-{
-	return Node->BufferSize;
-}
-
 void* HF_NodeGetVirtualNode(struct HF_Node *Node)
 {
 	return Node->VirtualNode;
-}
-
-void HF_NodeSetBuffer(struct HF_Node *Node, char unsigned *Buffer)
-{
-	Node->Buffer = Buffer;
-}
-
-void HF_NodeSetBufferOffset(struct HF_Node *Node, long long unsigned BufferOffset)
-{
-	Node->BufferOffset = BufferOffset;
-}
-
-void HF_NodeSetBufferSize(struct HF_Node *Node, long long unsigned BufferSize)
-{
-	Node->BufferSize = BufferSize;
 }
 
 void HF_NodeUpdate(struct HF_Node *Node)
 {
 	switch (Node->NodeType)
 	{
-		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeUpdate(Node->VirtualNode); break;
+		case HF_NODE_TYPE_ROOT: HF_RootNodeUpdate(Node->VirtualNode); break;
 		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeUpdate(Node->VirtualNode); break;
 	}
 }
@@ -190,7 +151,7 @@ void HF_NodeDrawFont(struct HF_Node *Node, struct HF_Font *Font)
 
 	switch (Node->NodeType)
 	{
-		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeDrawFont(Node->VirtualNode, Font); break;
+		case HF_NODE_TYPE_ROOT: HF_RootNodeDrawFont(Node->VirtualNode, Font); break;
 		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeDrawFont(Node->VirtualNode, Font); break;
 	}
 }
@@ -199,7 +160,7 @@ void HF_NodeDrawLines(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
 {
 	switch (Node->NodeType)
 	{
-		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeDrawLines(Node->VirtualNode, Gizmos); break;
+		case HF_NODE_TYPE_ROOT: HF_RootNodeDrawLines(Node->VirtualNode, Gizmos); break;
 		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeDrawLines(Node->VirtualNode, Gizmos); break;
 	}
 }
@@ -208,7 +169,7 @@ void HF_NodeDrawQuads(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
 {
 	switch (Node->NodeType)
 	{
-		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeDrawQuads(Node->VirtualNode, Gizmos); break;
+		case HF_NODE_TYPE_ROOT: HF_RootNodeDrawQuads(Node->VirtualNode, Gizmos); break;
 		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeDrawQuads(Node->VirtualNode, Gizmos); break;
 	}
 }
@@ -225,7 +186,7 @@ void HF_NodeDrawLineBatch(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
 	{
 		Node->Position[0],
 		Node->Position[1] - WindowBorderSize[1],
-		Node->Position[2] + 0.05F,
+		Node->Position[2] + 0.1F,
 	};
 
 	HF_GizmosDrawBatchLineRect(Gizmos, WindowBorderPosition, WindowBorderSize, Node->WindowBorderColor);
@@ -240,14 +201,14 @@ void HF_NodeDrawLineBatch(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
 	{
 		Node->Position[0] + Node->MarginLeft,
 		Node->Position[1] - ContentBorderSize[1] - Node->MarginTop,
-		Node->Position[2] + 0.05F,
+		Node->Position[2] + 0.1F,
 	};
 
 	HF_GizmosDrawBatchLineRect(Gizmos, ContentBorderPosition, ContentBorderSize, Node->ContentBorderColor);
 
 	switch (Node->NodeType)
 	{
-		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeDrawLineBatch(Node->VirtualNode, Gizmos); break;
+		case HF_NODE_TYPE_ROOT: HF_RootNodeDrawLineBatch(Node->VirtualNode, Gizmos); break;
 		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeDrawLineBatch(Node->VirtualNode, Gizmos); break;
 	}
 }
@@ -264,14 +225,14 @@ void HF_NodeDrawQuadBatch(struct HF_Node *Node, struct HF_Gizmos *Gizmos)
 	{
 		Node->Position[0],
 		Node->Position[1] - BackgroundSize[1],
-		Node->Position[2] + 0.1F,
+		Node->Position[2] + 0.2F,
 	};
 
 	HF_GizmosDrawBatchQuad(Gizmos, BackgroundPosition, BackgroundSize, Node->WindowBackgroundColor);
 
 	switch (Node->NodeType)
 	{
-		case HF_NODE_TYPE_HEX_VIEW: HF_RootNodeDrawQuadBatch(Node->VirtualNode, Gizmos); break;
+		case HF_NODE_TYPE_ROOT: HF_RootNodeDrawQuadBatch(Node->VirtualNode, Gizmos); break;
 		case HF_NODE_TYPE_TEXT_EDITOR: HF_TextEditorNodeDrawQuadBatch(Node->VirtualNode, Gizmos); break;
 	}
 }
